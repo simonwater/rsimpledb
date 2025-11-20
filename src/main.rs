@@ -1,3 +1,1 @@
-fn main() {
-    rsimpledb::hello();
-}
+fn main() {}
