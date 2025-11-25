@@ -45,7 +45,7 @@ impl Page {
         &mut self.buf[..]
     }
 
-    pub fn content(&self) -> &[u8] {
+    pub fn contents(&self) -> &[u8] {
         &self.buf
     }
 }
