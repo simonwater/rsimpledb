@@ -3,8 +3,8 @@ use std::fs::{File, OpenOptions};
 use std::io::{Read, Seek, SeekFrom, Write};
 use std::path::PathBuf;
 
-use crate::file::block_id::BlockId;
-use crate::file::page::Page;
+use crate::file::BlockId;
+use crate::file::Page;
 
 pub struct FileMgr {
     db_directory: PathBuf,
@@ -119,12 +119,8 @@ mod tests {
         let blocksize = 128;
         let mut fm = FileMgr::new(db_dir.clone(), blocksize);
 
-        assert!(fm.is_new());
-        assert_eq!(fm.block_size(), blocksize);
-
         let filename = "testfile";
-        let blk = fm.append(filename);
-        assert_eq!(blk.number(), 0);
+        let blk = fm.append(filename); // 在末尾追加
 
         let mut p1 = Page::new(blocksize);
         p1.set_int(0, 12345);

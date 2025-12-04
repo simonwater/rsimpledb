@@ -7,6 +7,10 @@ impl Page {
         Page { buf: vec![0; size] }
     }
 
+    pub fn from_bytes(b: Vec<u8>) -> Self {
+        Page { buf: b }
+    }
+
     pub fn get_int(&self, offset: usize) -> i32 {
         let bytes = &self.buf[offset..offset + 4];
         i32::from_be_bytes(bytes.try_into().expect("get_int: invalid integer bytes"))

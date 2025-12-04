@@ -1,5 +1,6 @@
 use std::fmt;
 
+#[derive(Clone)]
 pub struct BlockId {
     filename: String,
     blknum: usize,

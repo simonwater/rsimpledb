@@ -1,0 +1,146 @@
+use super::LogIterator;
+use crate::file::{BlockId, FileMgr, Page};
+
+const INT_SIZE: usize = std::mem::size_of::<i32>();
+pub struct LogMgr<'a> {
+    fm: &'a mut FileMgr,
+    logfile: String,
+    logpage: Page,
+    currentblk: BlockId,
+    latest_lsn: i32,
+    last_saved_lsn: i32,
+}
+
+impl<'a> LogMgr<'a> {
+    pub fn new(fm: &'a mut FileMgr, logfile: String) -> Self {
+        let mut logpage = Page::new(fm.block_size());
+        let logsize = fm.length(&logfile);
+        let currentblk = if logsize == 0 {
+            // creates the first block and returns it
+            let blk = fm.append(&logfile);
+            logpage.set_int(0, fm.block_size() as i32);
+            fm.write(&blk, &logpage);
+            blk
+        } else {
+            let blk = BlockId::new(logfile.clone(), logsize - 1);
+            fm.read(&blk, &mut logpage);
+            blk
+        };
+        LogMgr {
+            fm,
+            logfile,
+            logpage,
+            currentblk,
+            latest_lsn: 0,
+            last_saved_lsn: 0,
+        }
+    }
+
+    /// Ensures that the log record corresponding to `lsn` has been written
+    /// to disk. All earlier log records will also be written.
+    pub fn flush(&mut self, lsn: i32) {
+        if lsn >= self.last_saved_lsn {
+            self.flush_now();
+        }
+    }
+
+    pub fn iterator(&'_ mut self) -> LogIterator<'_> {
+        self.flush_now();
+        LogIterator::new(&mut self.fm, self.currentblk.clone())
+    }
+
+    /// Appends a log record to the log buffer and returns its LSN.
+    pub fn append(&mut self, logrec: &[u8]) -> i32 {
+        let mut boundary = self.logpage.get_int(0);
+        let recsize = logrec.len() as i32;
+        let bytesneeded = recsize + INT_SIZE as i32;
+        if boundary - bytesneeded < INT_SIZE as i32 {
+            self.flush_now();
+            self.currentblk = self.append_new_block();
+            boundary = self.logpage.get_int(0);
+        }
+        let recpos = boundary - bytesneeded;
+
+        self.logpage.set_bytes(recpos as usize, logrec);
+        self.logpage.set_int(0, recpos);
+        self.latest_lsn += 1;
+        self.latest_lsn
+    }
+
+    fn append_new_block(&mut self) -> BlockId {
+        let blk = self.fm.append(&self.logfile);
+        self.logpage.set_int(0, self.fm.block_size() as i32);
+        self.fm.write(&blk, &self.logpage);
+        blk
+    }
+
+    fn flush_now(&mut self) {
+        self.fm.write(&self.currentblk, &self.logpage);
+        self.last_saved_lsn = self.latest_lsn;
+    }
+}
+
+#[cfg(test)]
+mod tests {
+
+    use super::*;
+    use crate::file::FileMgr;
+
+    fn file_mgr_for_test() -> FileMgr {
+        let db_dir = std::path::PathBuf::from("testdb");
+        let blocksize = 128;
+        FileMgr::new(db_dir.clone(), blocksize)
+    }
+
+    fn print_log_records(msg: &str, log_mgr: &mut LogMgr) {
+        println!("{}", msg);
+        let mut iter = log_mgr.iterator();
+        while let Some(rec) = iter.next() {
+            let p = Page::from_bytes(rec);
+            let s = p.get_string(0);
+            let ipos = 4 + s.len();
+            let val = p.get_int(ipos);
+            println!("[{s}, {val}]");
+        }
+    }
+
+    fn create_log_records(start: i32, end: i32, log_mgr: &mut LogMgr) {
+        println!("Creating log records from {} to {}", start, end);
+        for i in start..=end {
+            let rec = create_log_record(format!("record{i}").as_str(), i + 100);
+            let lsn = log_mgr.append(&rec);
+            print!("{lsn} ");
+        }
+        println!()
+    }
+
+    // Create a log record having two values: a string and an integer.
+    fn create_log_record(s: &str, n: i32) -> Vec<u8> {
+        let spos = 0;
+        let ipos = spos + 4 + s.len(); // 4 bytes for length of string
+        let rec = vec![0u8; ipos + 4]; // 4 bytes for integer
+        let mut p = Page::from_bytes(rec);
+        // write the string
+        p.set_string(spos, s);
+        p.set_int(ipos, n);
+        p.contents().to_vec()
+    }
+
+    #[test]
+    fn test_log_mgr() {
+        let mut fm = file_mgr_for_test();
+        let mut log_mgr = LogMgr::new(&mut fm, "logfile".to_string());
+
+        print_log_records("The initial empty log file:", &mut log_mgr);
+
+        create_log_records(1, 35, &mut log_mgr);
+        print_log_records("The log file now has these records:", &mut log_mgr);
+
+        create_log_records(36, 70, &mut log_mgr);
+        log_mgr.flush(65);
+        print_log_records(
+            "The log file now has these records after flush 65:",
+            &mut log_mgr,
+        );
+    }
+}
