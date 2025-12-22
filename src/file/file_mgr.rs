@@ -1,37 +1,82 @@
 use std::collections::HashMap;
-use std::fs::{File, OpenOptions};
+use std::fs::{self, File, OpenOptions};
 use std::io::{Read, Seek, SeekFrom, Write};
 use std::path::PathBuf;
+use std::sync::{Arc, Mutex};
 
 use crate::file::BlockId;
 use crate::file::Page;
 
+#[derive(Clone)]
 pub struct FileMgr {
+    state: Arc<Mutex<FileMgrState>>,
+}
+
+impl FileMgr {
+    pub fn new(db_directory: PathBuf, blocksize: usize) -> Self {
+        let state = FileMgrState::new(db_directory, blocksize);
+        FileMgr {
+            state: Arc::new(Mutex::new(state)),
+        }
+    }
+
+    pub fn read(&mut self, blk: &BlockId, p: &mut Page) {
+        let mut state = self.state.lock().unwrap();
+        state.read(blk, p);
+    }
+
+    pub fn write(&mut self, blk: &BlockId, p: &Page) {
+        let mut state = self.state.lock().unwrap();
+        state.write(blk, p);
+    }
+
+    pub fn append(&mut self, filename: &str) -> BlockId {
+        let mut state = self.state.lock().unwrap();
+        state.append(filename)
+    }
+
+    pub fn length(&mut self, filename: &str) -> usize {
+        let mut state = self.state.lock().unwrap();
+        state.length(filename)
+    }
+
+    pub fn is_new(&self) -> bool {
+        let state = self.state.lock().unwrap();
+        state.is_new()
+    }
+
+    pub fn block_size(&self) -> usize {
+        let state = self.state.lock().unwrap();
+        state.block_size()
+    }
+}
+
+struct FileMgrState {
     db_directory: PathBuf,
     blocksize: usize,
     is_new: bool,
     open_files: HashMap<String, File>,
 }
 
-impl FileMgr {
+impl FileMgrState {
     pub fn new(db_directory: PathBuf, blocksize: usize) -> Self {
         let is_new = !db_directory.exists();
         if is_new {
-            std::fs::create_dir_all(&db_directory).expect("cannot create db directory");
+            fs::create_dir_all(&db_directory).expect("cannot create db directory");
         }
 
         // remove leftover temporary tables
-        if let Ok(entries) = std::fs::read_dir(&db_directory) {
+        if let Ok(entries) = fs::read_dir(&db_directory) {
             for entry in entries.flatten() {
                 if let Some(name) = entry.file_name().to_str() {
                     if name.starts_with("temp") {
-                        let _ = std::fs::remove_file(entry.path());
+                        let _ = fs::remove_file(entry.path());
                     }
                 }
             }
         }
 
-        FileMgr {
+        FileMgrState {
             db_directory,
             blocksize,
             is_new,
@@ -111,6 +156,7 @@ impl FileMgr {
 #[cfg(test)]
 mod tests {
     use super::{BlockId, FileMgr, Page};
+    use std::fs;
     use std::path::PathBuf;
 
     #[test]
@@ -146,7 +192,7 @@ mod tests {
         // Clean up
         let mut db_table = db_dir.clone();
         db_table.push(filename);
-        std::fs::remove_file(db_table).ok();
-        std::fs::remove_dir(db_dir).ok();
+        fs::remove_file(db_table).ok();
+        fs::remove_dir(db_dir).ok();
     }
 }

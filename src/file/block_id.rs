@@ -20,6 +20,12 @@ impl BlockId {
     }
 }
 
+impl PartialEq for BlockId {
+    fn eq(&self, other: &Self) -> bool {
+        self.filename == other.filename && self.blknum == other.blknum
+    }
+}
+
 impl fmt::Display for BlockId {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "[file {}, block {}]", self.filename, self.blknum)

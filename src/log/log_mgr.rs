@@ -1,9 +1,47 @@
+use std::sync::{Arc, Mutex};
+
 use super::LogIterator;
 use crate::file::{BlockId, FileMgr, Page};
 
 const INT_SIZE: usize = std::mem::size_of::<i32>();
-pub struct LogMgr<'a> {
-    fm: &'a mut FileMgr,
+
+#[derive(Clone)]
+pub struct LogMgr {
+    state: Arc<Mutex<LogMgrState>>,
+}
+
+impl LogMgr {
+    pub fn new(fm: FileMgr, logfile: String) -> Self {
+        let state = LogMgrState::new(fm, logfile);
+        LogMgr {
+            state: Arc::new(Mutex::new(state)),
+        }
+    }
+
+    /// Ensures that the log record corresponding to `lsn` has been written
+    /// to disk. All earlier log records will also be written.
+    pub fn flush(&mut self, lsn: i32) {
+        let mut state = self.state.lock().unwrap();
+        state.flush(lsn);
+    }
+
+    pub fn iterator(&mut self) -> LogIterator {
+        let mut state = self.state.lock().unwrap();
+        state.flush_now();
+        let fm = state.fm.clone();
+        let blk = state.currentblk.clone();
+        LogIterator::new(fm, blk)
+    }
+
+    /// Appends a log record to the log buffer and returns its LSN.
+    pub fn append(&mut self, logrec: &[u8]) -> i32 {
+        let mut state = self.state.lock().unwrap();
+        state.append(logrec)
+    }
+}
+
+struct LogMgrState {
+    fm: FileMgr,
     logfile: String,
     logpage: Page,
     currentblk: BlockId,
@@ -11,14 +49,14 @@ pub struct LogMgr<'a> {
     last_saved_lsn: i32,
 }
 
-impl<'a> LogMgr<'a> {
-    pub fn new(fm: &'a mut FileMgr, logfile: String) -> Self {
+impl LogMgrState {
+    pub fn new(mut fm: FileMgr, logfile: String) -> Self {
         let mut logpage = Page::new(fm.block_size());
         let logsize = fm.length(&logfile);
         let currentblk = if logsize == 0 {
             // creates the first block and returns it
             let blk = fm.append(&logfile);
-            logpage.set_int(0, fm.block_size() as i32);
+            logpage.set_int(0, fm.block_size() as i32); // set boundary
             fm.write(&blk, &logpage);
             blk
         } else {
@@ -26,7 +64,7 @@ impl<'a> LogMgr<'a> {
             fm.read(&blk, &mut logpage);
             blk
         };
-        LogMgr {
+        LogMgrState {
             fm,
             logfile,
             logpage,
@@ -42,11 +80,6 @@ impl<'a> LogMgr<'a> {
         if lsn >= self.last_saved_lsn {
             self.flush_now();
         }
-    }
-
-    pub fn iterator(&'_ mut self) -> LogIterator<'_> {
-        self.flush_now();
-        LogIterator::new(&mut self.fm, self.currentblk.clone())
     }
 
     /// Appends a log record to the log buffer and returns its LSN.
@@ -128,9 +161,8 @@ mod tests {
 
     #[test]
     fn test_log_mgr() {
-        let mut fm = file_mgr_for_test();
-        let mut log_mgr = LogMgr::new(&mut fm, "logfile".to_string());
-
+        let fm = file_mgr_for_test();
+        let mut log_mgr = LogMgr::new(fm.clone(), "logfile".to_string());
         print_log_records("The initial empty log file:", &mut log_mgr);
 
         create_log_records(1, 35, &mut log_mgr);

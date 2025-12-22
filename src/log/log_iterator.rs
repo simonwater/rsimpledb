@@ -1,15 +1,15 @@
 use crate::file::{BlockId, FileMgr, Page};
 
-pub struct LogIterator<'a> {
-    fm: &'a mut FileMgr,
+pub struct LogIterator {
+    fm: FileMgr,
     blk: BlockId,
     p: Page,
     currentpos: usize,
     boundary: usize,
 }
 
-impl<'a> LogIterator<'a> {
-    pub fn new(fm: &'a mut FileMgr, blk: BlockId) -> Self {
+impl LogIterator {
+    pub fn new(fm: FileMgr, blk: BlockId) -> Self {
         let p = Page::new(fm.block_size());
         let mut it = LogIterator {
             fm,
@@ -35,7 +35,7 @@ impl<'a> LogIterator<'a> {
     }
 }
 
-impl<'a> Iterator for LogIterator<'a> {
+impl Iterator for LogIterator {
     type Item = Vec<u8>;
 
     fn next(&mut self) -> Option<Self::Item> {
