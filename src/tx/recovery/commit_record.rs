@@ -2,6 +2,7 @@ use crate::file::Page;
 use crate::log::LogMgr;
 use crate::tx::Transaction;
 use crate::tx::recovery::{LogRecord, LogRecordType};
+use std::fmt;
 
 pub struct CommitRecord {
     txnum: i32,
@@ -35,5 +36,17 @@ impl LogRecord for CommitRecord {
 
     fn undo(&self, _tx: &mut Transaction) {
         // Does nothing
+    }
+}
+
+impl fmt::Display for CommitRecord {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "<COMMIT {}>", self.txnum)
+    }
+}
+
+impl fmt::Debug for CommitRecord {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self)
     }
 }

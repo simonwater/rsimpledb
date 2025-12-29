@@ -4,4 +4,5 @@ pub mod recovery;
 pub mod transaction;
 
 pub use buffer_list::BufferList;
+pub use concurrency::LockTable;
 pub use transaction::Transaction;

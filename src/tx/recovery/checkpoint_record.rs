@@ -1,6 +1,7 @@
 use crate::log::LogMgr;
 use crate::tx::Transaction;
 use crate::tx::recovery::{LogRecord, LogRecordType};
+use std::fmt;
 
 pub struct CheckpointRecord;
 
@@ -28,5 +29,17 @@ impl LogRecord for CheckpointRecord {
 
     fn undo(&self, _tx: &mut Transaction) {
         // Does nothing
+    }
+}
+
+impl fmt::Display for CheckpointRecord {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "<CHECKPOINT>")
+    }
+}
+
+impl fmt::Debug for CheckpointRecord {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self)
     }
 }

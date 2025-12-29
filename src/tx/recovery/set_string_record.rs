@@ -2,6 +2,7 @@ use crate::file::{BlockId, Page};
 use crate::log::LogMgr;
 use crate::tx::Transaction;
 use crate::tx::recovery::{LogRecord, LogRecordType};
+use std::fmt;
 
 pub struct SetStringRecord {
     txnum: i32,
@@ -64,5 +65,21 @@ impl LogRecord for SetStringRecord {
         let _ = tx.pin(&self.blk);
         let _ = tx.set_string(&self.blk, self.offset as usize, &self.val, false); // don't log the undo!
         tx.unpin(&self.blk);
+    }
+}
+
+impl fmt::Display for SetStringRecord {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "<SETSTRING {} {} {} {}>",
+            self.txnum, self.blk, self.offset, self.val
+        )
+    }
+}
+
+impl fmt::Debug for SetStringRecord {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self)
     }
 }

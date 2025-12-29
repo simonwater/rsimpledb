@@ -25,13 +25,13 @@ pub struct Transaction {
 
 impl Transaction {
     /// Create a new transaction and its associated recovery and concurrency managers
-    pub fn new(fm: FileMgr, lm: LogMgr, bm: BufferMgr, lock_table: Arc<Mutex<LockTable>>) -> Self {
+    pub fn new(fm: FileMgr, lm: LogMgr, bm: BufferMgr, lt: LockTable) -> Self {
         let txnum = Self::next_tx_number();
         let recovery_mgr = RecoveryMgr::new(txnum, lm.clone(), bm.clone());
 
         Self {
             recovery_mgr,
-            concur_mgr: ConcurrencyMgr::new(lock_table),
+            concur_mgr: ConcurrencyMgr::new(lt),
             bm: bm.clone(),
             lm,
             fm,

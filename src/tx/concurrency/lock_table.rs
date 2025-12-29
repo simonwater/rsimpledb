@@ -1,12 +1,13 @@
-use std::collections::HashMap;
-use std::sync::{Arc, Mutex, Condvar};
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use crate::file::BlockId;
 use crate::tx::concurrency::LockAbortException;
+use std::collections::HashMap;
+use std::sync::{Arc, Condvar, Mutex};
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 const MAX_TIME_MS: u64 = 10000; // 10 seconds
 
 /// The lock table, which provides methods to lock and unlock blocks
+#[derive(Clone)]
 pub struct LockTable {
     locks: Arc<Mutex<HashMap<BlockId, i32>>>,
     condvar: Arc<Condvar>,
@@ -38,16 +39,16 @@ impl LockTable {
             let elapsed = SystemTime::now()
                 .duration_since(UNIX_EPOCH)
                 .unwrap()
-                .as_millis() as u64 - start_time;
+                .as_millis() as u64
+                - start_time;
 
             if elapsed > MAX_TIME_MS {
                 return Err(LockAbortException);
             }
 
-            let _ = self.condvar.wait_timeout(
-                locks,
-                Duration::from_millis(MAX_TIME_MS - elapsed),
-            );
+            let _ = self
+                .condvar
+                .wait_timeout(locks, Duration::from_millis(MAX_TIME_MS - elapsed));
         }
     }
 
@@ -68,16 +69,16 @@ impl LockTable {
             let elapsed = SystemTime::now()
                 .duration_since(UNIX_EPOCH)
                 .unwrap()
-                .as_millis() as u64 - start_time;
+                .as_millis() as u64
+                - start_time;
 
             if elapsed > MAX_TIME_MS {
                 return Err(LockAbortException);
             }
 
-            let _ = self.condvar.wait_timeout(
-                locks,
-                Duration::from_millis(MAX_TIME_MS - elapsed),
-            );
+            let _ = self
+                .condvar
+                .wait_timeout(locks, Duration::from_millis(MAX_TIME_MS - elapsed));
         }
     }
 
@@ -111,4 +112,3 @@ impl Default for LockTable {
         Self::new()
     }
 }
-

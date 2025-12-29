@@ -2,6 +2,7 @@ use crate::file::Page;
 use crate::log::LogMgr;
 use crate::tx::Transaction;
 use crate::tx::recovery::{LogRecord, LogRecordType};
+use std::fmt;
 
 pub struct StartRecord {
     txnum: i32,
@@ -35,5 +36,17 @@ impl LogRecord for StartRecord {
 
     fn undo(&self, _tx: &mut Transaction) {
         // Does nothing, because a start record contains no undo information
+    }
+}
+
+impl fmt::Display for StartRecord {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "<START {}>", self.txnum)
+    }
+}
+
+impl fmt::Debug for StartRecord {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self)
     }
 }

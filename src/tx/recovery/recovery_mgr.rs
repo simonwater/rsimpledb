@@ -104,3 +104,56 @@ impl RecoveryMgr {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::DataBase;
+    use crate::buffer::BufferMgr;
+    use crate::file::{BlockId, FileMgr, Page};
+
+    #[test]
+    fn it_works() {
+        let mut db: DataBase = DataBase::new("testdb");
+        initialize(&mut db);
+    }
+
+    fn initialize(db: &mut DataBase) {
+        let fm = db.file_mgr();
+        let blk1 = fm.append("testfile");
+        let blk2 = fm.append("testfile");
+        let mut tx1 = db.new_tx();
+        let mut tx2 = db.new_tx();
+        tx1.pin(&blk1).unwrap();
+        tx2.pin(&blk2).unwrap();
+        let mut pos = 0;
+        for _ in 0..6 {
+            tx1.set_int(&blk1, pos as usize, pos, false).unwrap();
+            tx2.set_int(&blk2, pos as usize, pos, false).unwrap();
+            pos = pos + 4; // Integer.BYTES
+        }
+        tx1.set_string(&blk1, 30, "abc", false).unwrap();
+        tx2.set_string(&blk2, 30, "def", false).unwrap();
+        tx1.commit();
+        tx2.commit();
+        print_values("After Initialization:", db.file_mgr());
+    }
+
+    fn print_values(msg: &str, fm: &mut FileMgr) {
+        println!("{}", msg);
+        let blk1 = BlockId::new("testfile".to_string(), 0);
+        let blk2 = BlockId::new("testfile".to_string(), 1);
+        let mut p1 = Page::new(fm.block_size());
+        let mut p2 = Page::new(fm.block_size());
+        fm.read(&blk1, &mut p1);
+        fm.read(&blk2, &mut p2);
+        let mut pos = 0;
+        for _ in 0..6 {
+            print!("{} ", p1.get_int(pos));
+            print!("{} ", p2.get_int(pos));
+            pos = pos + 4; // Integer.BYTES
+        }
+        print!("{} ", p1.get_string(30));
+        print!("{} ", p2.get_string(30));
+        println!();
+    }
+}

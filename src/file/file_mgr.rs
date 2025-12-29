@@ -106,7 +106,7 @@ impl FileMgrState {
         f.seek(SeekFrom::Start(offset as u64)).expect("cannot seek");
         let buf = p.contents_mut();
         f.read_exact(buf)
-            .unwrap_or_else(|_| panic!("cannot read block {}", blk));
+            .unwrap_or_else(|e| panic!("cannot read block {}: {}", blk, e));
     }
 
     pub fn write(&mut self, blk: &BlockId, p: &Page) {
@@ -162,7 +162,7 @@ mod tests {
     #[test]
     fn test_file_mgr() {
         let db_dir = PathBuf::from("testdb");
-        let blocksize = 128;
+        let blocksize = 400;
         let mut fm = FileMgr::new(db_dir.clone(), blocksize);
 
         let filename = "testfile";
