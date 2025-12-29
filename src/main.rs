@@ -1,3 +1,4 @@
+use rsimpledb::thread_pool;
 fn main() {
-    println!("Hello, world!");
+    let _pool = thread_pool::ThreadPool::new(4);
 }

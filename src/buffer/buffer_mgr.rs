@@ -17,15 +17,49 @@ impl std::fmt::Display for BufferAbortException {
 
 impl std::error::Error for BufferAbortException {}
 
-/// Manages the pinning and unpinning of buffers to blocks.
+#[derive(Clone)]
 pub struct BufferMgr {
+    state: Arc<Mutex<BufferMgrState>>,
+}
+
+impl BufferMgr {
+    pub fn new(fm: FileMgr, lm: LogMgr, numbuffs: usize) -> Self {
+        BufferMgr {
+            state: Arc::new(Mutex::new(BufferMgrState::new(fm, lm, numbuffs))),
+        }
+    }
+
+    /// Returns the number of available (unpinned) buffers
+    pub fn available(&self) -> usize {
+        self.state.lock().unwrap().available()
+    }
+
+    /// Flushes the dirty buffers modified by the specified transaction
+    pub fn flush_all(&self, txnum: i32) {
+        self.state.lock().unwrap().flush_all(txnum);
+    }
+
+    /// Unpins the specified buffer. If pin count goes to zero, it becomes available.
+    pub fn unpin(&self, buff_arc: Arc<Mutex<Buffer>>) {
+        self.state.lock().unwrap().unpin(buff_arc);
+    }
+
+    /// Pins a buffer to the specified block, waiting if necessary.
+    /// Returns BufferAbortException if no buffer becomes available within MAX_TIME.
+    pub fn pin(&self, blk: &BlockId) -> Result<Arc<Mutex<Buffer>>, BufferAbortException> {
+        self.state.lock().unwrap().pin(blk)
+    }
+}
+
+/// Manages the pinning and unpinning of buffers to blocks.
+struct BufferMgrState {
     bufferpool: Vec<Arc<Mutex<Buffer>>>,
     num_available: usize,
 }
 
 const MAX_TIME_MS: u128 = 10000; // 10 seconds
 
-impl BufferMgr {
+impl BufferMgrState {
     /// Creates a buffer manager with the specified number of buffer slots
     pub fn new(fm: FileMgr, lm: LogMgr, numbuffs: usize) -> Self {
         let mut bufferpool = Vec::with_capacity(numbuffs);
@@ -33,7 +67,7 @@ impl BufferMgr {
             let buff = Buffer::new(fm.clone(), lm.clone());
             bufferpool.push(Arc::new(Mutex::new(buff)));
         }
-        BufferMgr {
+        BufferMgrState {
             bufferpool,
             num_available: numbuffs,
         }
@@ -65,7 +99,7 @@ impl BufferMgr {
 
     /// Pins a buffer to the specified block, waiting if necessary.
     /// Returns BufferAbortException if no buffer becomes available within MAX_TIME.
-    pub fn pin(&mut self, blk: BlockId) -> Result<Arc<Mutex<Buffer>>, BufferAbortException> {
+    pub fn pin(&mut self, blk: &BlockId) -> Result<Arc<Mutex<Buffer>>, BufferAbortException> {
         let start_time = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .unwrap()

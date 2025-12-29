@@ -52,6 +52,10 @@ impl Page {
     pub fn contents(&self) -> &[u8] {
         &self.buf
     }
+
+    pub fn max_length(s: &str) -> usize {
+        4 + s.len() // 4 bytes for length + string bytes
+    }
 }
 
 #[cfg(test)]

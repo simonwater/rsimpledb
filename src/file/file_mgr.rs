@@ -122,7 +122,7 @@ impl FileMgrState {
 
     pub fn append(&mut self, filename: &str) -> BlockId {
         let newblknum = self.length(filename);
-        let blk = BlockId::new(filename.to_string(), newblknum);
+        let blk = BlockId::new(filename.to_string(), newblknum as i32);
         let zeros = vec![0u8; self.blocksize];
         let offset = (blk.number() as usize) * self.blocksize;
         let f = self.get_file_mut(filename).expect("cannot access file");

@@ -60,7 +60,7 @@ impl LogMgrState {
             fm.write(&blk, &logpage);
             blk
         } else {
-            let blk = BlockId::new(logfile.clone(), logsize - 1);
+            let blk = BlockId::new(logfile.clone(), (logsize - 1) as i32);
             fm.read(&blk, &mut logpage);
             blk
         };
