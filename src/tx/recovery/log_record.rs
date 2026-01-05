@@ -1,3 +1,5 @@
+use std::fmt;
+
 use crate::file::Page;
 use crate::tx::Transaction;
 
@@ -11,7 +13,7 @@ pub enum LogRecordType {
     SetString = 5,
 }
 
-pub trait LogRecord {
+pub trait LogRecord: fmt::Display + fmt::Debug {
     fn op(&self) -> LogRecordType;
     fn tx_number(&self) -> i32;
     fn undo(&self, tx: &mut Transaction);

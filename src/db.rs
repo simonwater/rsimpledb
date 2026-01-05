@@ -44,8 +44,8 @@ impl DataBase {
         &mut self.fm
     }
 
-    pub fn log_mgr(&self) -> &LogMgr {
-        &self.lm
+    pub fn log_mgr(&mut self) -> &mut LogMgr {
+        &mut self.lm
     }
 
     pub fn buffer_mgr(&self) -> &BufferMgr {

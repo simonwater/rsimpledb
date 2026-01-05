@@ -1,4 +1,4 @@
-use rsimpledb::thread_pool;
+use rsimpledb::thread::ThreadPool;
 fn main() {
-    let _pool = thread_pool::ThreadPool::new(4);
+    let _pool = ThreadPool::new(4);
 }

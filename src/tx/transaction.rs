@@ -111,12 +111,12 @@ impl Transaction {
             .mybuffers
             .get_buffer(blk)
             .ok_or_else(|| LockAbortException)?;
-        let mut buffer = buff.lock().unwrap();
         let lsn = if ok_to_log {
             self.recovery_mgr.set_int(&buff, offset, val)
         } else {
             -1
         };
+        let mut buffer = buff.lock().unwrap();
         buffer.contents_mut().set_int(offset, val);
         buffer.set_modified(self.txnum, lsn);
         Ok(())
@@ -135,12 +135,12 @@ impl Transaction {
             .mybuffers
             .get_buffer(blk)
             .ok_or_else(|| LockAbortException)?;
-        let mut buffer = buff.lock().unwrap();
         let lsn = if ok_to_log {
             self.recovery_mgr.set_string(&buff, offset, val)
         } else {
             -1
         };
+        let mut buffer = buff.lock().unwrap();
         buffer.contents_mut().set_string(offset, val);
         buffer.set_modified(self.txnum, lsn);
         Ok(())

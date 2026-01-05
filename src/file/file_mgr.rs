@@ -10,13 +10,19 @@ use crate::file::Page;
 #[derive(Clone)]
 pub struct FileMgr {
     state: Arc<Mutex<FileMgrState>>,
+    blocksize: usize,
+    is_new: bool,
 }
 
+// todo: 有些方法无需加锁，可以优化
 impl FileMgr {
     pub fn new(db_directory: PathBuf, blocksize: usize) -> Self {
+        let is_new = !db_directory.exists();
         let state = FileMgrState::new(db_directory, blocksize);
         FileMgr {
             state: Arc::new(Mutex::new(state)),
+            blocksize,
+            is_new,
         }
     }
 
@@ -41,20 +47,17 @@ impl FileMgr {
     }
 
     pub fn is_new(&self) -> bool {
-        let state = self.state.lock().unwrap();
-        state.is_new()
+        self.is_new
     }
 
     pub fn block_size(&self) -> usize {
-        let state = self.state.lock().unwrap();
-        state.block_size()
+        self.blocksize
     }
 }
 
 struct FileMgrState {
     db_directory: PathBuf,
     blocksize: usize,
-    is_new: bool,
     open_files: HashMap<String, File>,
 }
 
@@ -79,7 +82,6 @@ impl FileMgrState {
         FileMgrState {
             db_directory,
             blocksize,
-            is_new,
             open_files: HashMap::new(),
         }
     }
@@ -142,14 +144,6 @@ impl FileMgrState {
             Ok(meta) => (meta.len() as usize) / self.blocksize,
             Err(_) => panic!("cannot access {}", filename),
         }
-    }
-
-    pub fn is_new(&self) -> bool {
-        self.is_new
-    }
-
-    pub fn block_size(&self) -> usize {
-        self.blocksize
     }
 }
 
