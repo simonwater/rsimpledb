@@ -107,24 +107,24 @@ impl RecoveryMgr {
 
 #[cfg(test)]
 mod tests {
-    use crate::buffer::BufferMgr;
+    use crate::DataBase;
     use crate::file::{BlockId, FileMgr, Page};
     use crate::log::LogMgr;
-    use crate::tx::recovery::LogRecordType;
     use crate::tx::recovery::log_record::create_log_record;
-    use crate::{DataBase, db, tx};
 
     #[test]
     fn it_works() {
-        let mut db: DataBase = DataBase::new("testdb");
+        let mut db: DataBase = DataBase::new(".temp/recoverydb");
         let fm = db.file_mgr();
         println!("{}", fm.length("testfile"));
         if fm.length("testfile") == 0 {
             initialize(&mut db);
+        } else {
+            print_values("data already initialized:", db.file_mgr());
         }
         modify(&mut db);
         print_log(db.log_mgr());
-        recover(&mut db);
+        //recover(&mut db);
     }
 
     fn initialize(db: &mut DataBase) {
@@ -149,7 +149,6 @@ mod tests {
     }
 
     fn modify(db: &mut DataBase) {
-        let bm = db.buffer_mgr();
         let blk1 = BlockId::new("testfile".to_string(), 0);
         let blk2 = BlockId::new("testfile".to_string(), 1);
         let mut tx1 = db.new_tx();
@@ -158,12 +157,13 @@ mod tests {
         tx2.pin(&blk2).unwrap();
         let mut pos = 0;
         for _ in 0..6 {
-            tx1.set_int(&blk1, pos as usize, pos * 10, true).unwrap();
-            tx2.set_int(&blk2, pos as usize, pos * 10, true).unwrap();
+            tx1.set_int(&blk1, pos as usize, pos * 1000, true).unwrap();
+            tx2.set_int(&blk2, pos as usize, pos * 1000, true).unwrap();
             pos = pos + 4; // Integer.BYTES
         }
-        tx1.set_string(&blk1, 30, "xyz", true).unwrap();
-        tx2.set_string(&blk2, 30, "uvw", true).unwrap();
+        tx1.set_string(&blk1, 30, "xxyyzz", true).unwrap();
+        tx2.set_string(&blk2, 30, "uuvvww", true).unwrap();
+        let bm = db.buffer_mgr();
         bm.flush_all(tx1.txnum());
         bm.flush_all(tx2.txnum());
 
@@ -171,10 +171,11 @@ mod tests {
         print_values("After Modification:", fm);
 
         tx1.rollback();
-        print_values("After rollback:", fm);
+        print_values("After partial rollback:", fm);
     }
 
-    fn recover(db: &mut DataBase) {
+    fn _recover(db: &mut DataBase) {
+        println!("start recovery");
         let mut tx = db.new_tx();
         tx.recover();
         let fm = db.file_mgr();

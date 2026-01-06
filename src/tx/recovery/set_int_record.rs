@@ -61,8 +61,9 @@ impl LogRecord for SetIntRecord {
     }
 
     fn undo(&self, tx: &mut Transaction) {
-        let _ = tx.pin(&self.blk);
-        let _ = tx.set_int(&self.blk, self.offset as usize, self.val, false); // don't log the undo!
+        tx.pin(&self.blk).unwrap();
+        tx.set_int(&self.blk, self.offset as usize, self.val, false)
+            .unwrap(); // don't log the undo!
         tx.unpin(&self.blk);
     }
 }

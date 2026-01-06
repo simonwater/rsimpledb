@@ -48,8 +48,8 @@ impl DataBase {
         &mut self.lm
     }
 
-    pub fn buffer_mgr(&self) -> &BufferMgr {
-        &self.bm
+    pub fn buffer_mgr(&mut self) -> &mut BufferMgr {
+        &mut self.bm
     }
 
     pub fn new_tx(&self) -> Transaction {
