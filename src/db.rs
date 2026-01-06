@@ -8,6 +8,7 @@ pub const BLOCK_SIZE: usize = 400;
 pub const BUFFER_SIZE: usize = 8;
 pub const LOG_FILE: &'static str = "rsimpledb.log";
 
+#[derive(Clone)]
 pub struct DataBase {
     lm: LogMgr,
     bm: BufferMgr,
