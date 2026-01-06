@@ -187,7 +187,7 @@ mod tests {
     #[test]
     fn test_buffer_manager_concurrency() {
         // 1. 初始化文件管理器和缓冲区管理器
-        let db_dir = PathBuf::from(".temp/bufdb");
+        let db_dir = PathBuf::from(".temp/bmdb");
         let blocksize = 400;
         let mut fm = FileMgr::new(db_dir.clone(), blocksize);
         let lm = LogMgr::new(fm.clone(), "testlog.log".to_string());

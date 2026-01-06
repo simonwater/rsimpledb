@@ -92,6 +92,7 @@ impl RecoveryMgr {
         while iter.has_next() {
             if let Some(bytes) = iter.next() {
                 let rec = create_log_record(&bytes);
+                dbg!(&rec);
                 if rec.op() == LogRecordType::Checkpoint {
                     return;
                 }

@@ -120,7 +120,7 @@ mod tests {
     use crate::file::FileMgr;
 
     fn file_mgr_for_test() -> FileMgr {
-        let db_dir = std::path::PathBuf::from("testdb");
+        let db_dir = std::path::PathBuf::from(".tmp/lmdb");
         let blocksize = 128;
         FileMgr::new(db_dir.clone(), blocksize)
     }
