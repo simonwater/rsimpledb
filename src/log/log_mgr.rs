@@ -118,31 +118,41 @@ mod tests {
 
     use super::*;
     use crate::file::FileMgr;
+    use std::fs;
 
-    fn file_mgr_for_test() -> FileMgr {
-        let db_dir = std::path::PathBuf::from(".tmp/lmdb");
-        let blocksize = 128;
-        FileMgr::new(db_dir.clone(), blocksize)
+    #[test]
+    fn logmgr_test() {
+        let db_dir = std::path::PathBuf::from(".temp/lmdb");
+        let fm = FileMgr::new(db_dir.clone(), 128);
+        let mut log_mgr = LogMgr::new(fm.clone(), "logfile".to_string());
+
+        create_log_records(1, 35, &mut log_mgr);
+        check_log_records(1, 35, &mut log_mgr);
+
+        create_log_records(36, 70, &mut log_mgr);
+        log_mgr.flush(65);
+        check_log_records(36, 70, &mut log_mgr);
+        fs::remove_dir_all(db_dir).ok();
     }
 
-    fn print_log_records(msg: &str, log_mgr: &mut LogMgr) {
-        println!("{}", msg);
+    fn check_log_records(start: i32, end: i32, log_mgr: &mut LogMgr) {
         let mut iter = log_mgr.iterator();
-        while let Some(rec) = iter.next() {
+        for i in (start..=end).rev() {
+            let rec = iter.next().expect("log record missing");
             let p = Page::from_bytes(rec);
             let s = p.get_string(0);
             let ipos = 4 + s.len();
             let val = p.get_int(ipos);
-            println!("[{s}, {val}]");
+            assert_eq!(s, format!("record{i}"));
+            assert_eq!(val, i);
         }
     }
 
     fn create_log_records(start: i32, end: i32, log_mgr: &mut LogMgr) {
-        println!("Creating log records from {} to {}", start, end);
         for i in start..=end {
-            let rec = create_log_record(format!("record{i}").as_str(), i + 100);
+            let rec = create_log_record(format!("record{i}").as_str(), i);
             let lsn = log_mgr.append(&rec);
-            print!("{lsn} ");
+            assert_eq!(lsn, i);
         }
         println!()
     }
@@ -157,22 +167,5 @@ mod tests {
         p.set_string(spos, s);
         p.set_int(ipos, n);
         p.contents().to_vec()
-    }
-
-    #[test]
-    fn test_log_mgr() {
-        let fm = file_mgr_for_test();
-        let mut log_mgr = LogMgr::new(fm.clone(), "logfile".to_string());
-        print_log_records("The initial empty log file:", &mut log_mgr);
-
-        create_log_records(1, 35, &mut log_mgr);
-        print_log_records("The log file now has these records:", &mut log_mgr);
-
-        create_log_records(36, 70, &mut log_mgr);
-        log_mgr.flush(65);
-        print_log_records(
-            "The log file now has these records after flush 65:",
-            &mut log_mgr,
-        );
     }
 }

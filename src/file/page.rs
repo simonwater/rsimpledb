@@ -62,11 +62,11 @@ impl Page {
 mod tests {
     use super::Page;
     #[test]
-    fn test_page() {
+    fn page_test() {
         let mut page = Page::new(100);
         page.set_int(0, 42);
-        assert_eq!(page.get_int(0), 42);
         page.set_string(4, "hello");
+        assert_eq!(page.get_int(0), 42);
         assert_eq!(page.get_string(4), "hello");
     }
 }

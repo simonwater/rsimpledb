@@ -18,10 +18,10 @@ pub struct DataBase {
 
 impl DataBase {
     pub fn new(db_directory: &str) -> Self {
-        Self::new_with_size(db_directory, BUFFER_SIZE, BLOCK_SIZE)
+        Self::new_with_size(db_directory, BLOCK_SIZE, BUFFER_SIZE)
     }
 
-    pub fn new_with_size(db_directory: &str, numbuffs: usize, blocksize: usize) -> Self {
+    pub fn new_with_size(db_directory: &str, blocksize: usize, numbuffs: usize) -> Self {
         let db_dir = PathBuf::from(db_directory);
         let fm = FileMgr::new(db_dir, blocksize);
         let lm = LogMgr::new(fm.clone(), LOG_FILE.to_string());

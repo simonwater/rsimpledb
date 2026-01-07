@@ -109,22 +109,23 @@ impl RecoveryMgr {
 mod tests {
     use crate::DataBase;
     use crate::file::{BlockId, FileMgr, Page};
-    use crate::log::LogMgr;
-    use crate::tx::recovery::log_record::create_log_record;
+    use std::{fs, thread};
 
     #[test]
-    fn it_works() {
-        let mut db: DataBase = DataBase::new(".temp/recoverydb");
-        let mut fm = db.file_mgr();
-        println!("{}", fm.length("testfile"));
-        if fm.length("testfile") == 0 {
+    fn recovery_test() {
+        let db_dir = ".temp/recoverydb";
+        let handle = thread::spawn(|| {
+            let mut db: DataBase = DataBase::new(db_dir);
             initialize(&mut db);
-        } else {
-            print_values("data already initialized:", &mut fm);
-        }
-        modify(&mut db);
-        print_log(&mut db.log_mgr());
-        //recover(&mut db);
+            // blk1回滚成功，blk2失败, 模拟系统崩溃
+            modify(&mut db);
+        });
+        handle.join().unwrap();
+
+        // 主线程模拟系统恢复
+        let db: DataBase = DataBase::new(db_dir);
+        check_initial_values(&mut db.file_mgr());
+        fs::remove_dir_all(db_dir).ok();
     }
 
     fn initialize(db: &mut DataBase) {
@@ -145,7 +146,9 @@ mod tests {
         tx2.set_string(&blk2, 30, "def", true).unwrap();
         tx1.commit();
         tx2.commit();
-        print_values("After Initialization:", &mut fm);
+
+        // begin checking
+        check_initial_values(&mut fm);
     }
 
     fn modify(db: &mut DataBase) {
@@ -161,55 +164,67 @@ mod tests {
             tx2.set_int(&blk2, pos as usize, pos * 1000, true).unwrap();
             pos = pos + 4; // Integer.BYTES
         }
-        tx1.set_string(&blk1, 30, "xxyyzz", true).unwrap();
-        tx2.set_string(&blk2, 30, "uuvvww", true).unwrap();
+        tx1.set_string(&blk1, 30, "abc_modify", true).unwrap();
+        tx2.set_string(&blk2, 30, "def_modify", true).unwrap();
         let bm = db.buffer_mgr();
         bm.flush_all(tx1.txnum());
         bm.flush_all(tx2.txnum());
 
         let mut fm = db.file_mgr();
-        print_values("After Modification:", &mut fm);
+        // begin checking
+        check_modified_values(&mut fm);
 
         tx1.rollback();
-        print_values("After partial rollback:", &mut fm);
+        check_partial_rollback_values(&mut fm);
     }
 
-    fn _recover(db: &mut DataBase) {
-        println!("start recovery");
-        let mut tx = db.new_tx();
-        tx.recover();
-        let mut fm = db.file_mgr();
-        print_values("After Recovery:", &mut fm);
-    }
-
-    fn print_values(msg: &str, fm: &mut FileMgr) {
-        println!("{}", msg);
-        let blk1 = BlockId::new("testfile".to_string(), 0);
-        let blk2 = BlockId::new("testfile".to_string(), 1);
+    fn read_pages(fm: &mut FileMgr, blk1: &BlockId, blk2: &BlockId) -> (Page, Page) {
         let mut p1 = Page::new(fm.block_size());
         let mut p2 = Page::new(fm.block_size());
-        fm.read(&blk1, &mut p1);
-        fm.read(&blk2, &mut p2);
-        let mut pos = 0;
-        for _ in 0..6 {
-            print!("{} ", p1.get_int(pos));
-            print!("{} ", p2.get_int(pos));
-            pos = pos + 4; // Integer.BYTES
-        }
-        print!("{} ", p1.get_string(30));
-        print!("{} ", p2.get_string(30));
-        println!();
+        fm.read(blk1, &mut p1);
+        fm.read(blk2, &mut p2);
+        (p1, p2)
     }
 
-    fn print_log(lm: &mut LogMgr) {
-        println!("Log records:");
-        let mut iter = lm.iterator();
-
-        while iter.has_next() {
-            if let Some(bytes) = iter.next() {
-                let rec = create_log_record(&bytes);
-                println!("{:?}", rec);
-            }
+    fn check_initial_values(fm: &mut FileMgr) {
+        let blk1 = BlockId::new("testfile".to_string(), 0);
+        let blk2 = BlockId::new("testfile".to_string(), 1);
+        let (p1, p2) = read_pages(fm, &blk1, &blk2);
+        let mut pos = 0;
+        for _ in 0..6 {
+            assert_eq!(p1.get_int(pos), pos as i32);
+            assert_eq!(p2.get_int(pos), pos as i32);
+            pos = pos + 4; // Integer.BYTES
         }
+        assert_eq!("abc", p1.get_string(30));
+        assert_eq!("def", p2.get_string(30));
+    }
+
+    fn check_modified_values(fm: &mut FileMgr) {
+        let blk1 = BlockId::new("testfile".to_string(), 0);
+        let blk2 = BlockId::new("testfile".to_string(), 1);
+        let (p1, p2) = read_pages(fm, &blk1, &blk2);
+        let mut pos = 0;
+        for _ in 0..6 {
+            assert_eq!(p1.get_int(pos), pos as i32 * 1000);
+            assert_eq!(p2.get_int(pos), pos as i32 * 1000);
+            pos = pos + 4; // Integer.BYTES
+        }
+        assert_eq!("abc_modify", p1.get_string(30));
+        assert_eq!("def_modify", p2.get_string(30));
+    }
+
+    fn check_partial_rollback_values(fm: &mut FileMgr) {
+        let blk1 = BlockId::new("testfile".to_string(), 0);
+        let blk2 = BlockId::new("testfile".to_string(), 1);
+        let (p1, p2) = read_pages(fm, &blk1, &blk2);
+        let mut pos: i32 = 0;
+        for _ in 0..6 {
+            assert_eq!(p1.get_int(pos as usize), pos);
+            assert_eq!(p2.get_int(pos as usize), pos * 1000);
+            pos = pos + 4; // Integer.BYTES
+        }
+        assert_eq!("abc", p1.get_string(30));
+        assert_eq!("def_modify", p2.get_string(30));
     }
 }

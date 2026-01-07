@@ -45,16 +45,19 @@ impl MultiThreadRunner {
             handles.into_iter().map(|h| h.join().unwrap()).collect();
         results.sort_by(|a, b| a.1.cmp(&b.1));
 
-        self.print_results(results);
+        self.print_results(&results);
     }
 
-    fn print_results(&self, results: Vec<(usize, Duration, Vec<String>)>) {
+    fn print_results(&self, results: &Vec<(usize, Duration, Vec<String>)>) {
         println!("{}", self.headers.join(" | "));
         println!("{:-<40}", "");
+        let mut total_ms = 0.0;
         for (id, duration, result) in results {
+            total_ms += duration.as_secs_f64() * 1000.0;
             println!("{:<12} | {:<10.2?} | {}", id, duration, result.join(" | "));
         }
         println!("{:-<40}", "");
         println!("所有线程执行完毕。");
+        println!("平均执行时间: {:.2} ms", total_ms / results.len() as f64);
     }
 }

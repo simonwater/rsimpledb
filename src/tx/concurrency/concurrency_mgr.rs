@@ -53,8 +53,8 @@ impl ConcurrencyMgr {
 
 #[cfg(test)]
 mod tests {
-    use std::thread;
     use std::time::Duration;
+    use std::{fs, thread};
 
     use crate::DataBase;
     use crate::file::BlockId;
@@ -62,7 +62,8 @@ mod tests {
 
     #[test]
     fn concurrency_mgr_test() {
-        let db = DataBase::new(".temp/concurrencydb");
+        let db_dir = ".temp/concurrencydb";
+        let db = DataBase::new(db_dir);
         let mut fm = db.file_mgr();
         let _blk1 = fm.append("testfile");
         let _blk2 = fm.append("testfile");
@@ -89,6 +90,8 @@ mod tests {
         for handle in handlers {
             handle.join().unwrap();
         }
+
+        fs::remove_dir_all(db_dir).ok();
     }
 
     fn run_a(mut tx_a: Transaction) {

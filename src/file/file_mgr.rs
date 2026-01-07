@@ -154,7 +154,7 @@ mod tests {
     use std::path::PathBuf;
 
     #[test]
-    fn test_file_mgr() {
+    fn file_mgr_test() {
         let db_dir = PathBuf::from(".tmp/fmdb");
         let blocksize = 400;
         let mut fm = FileMgr::new(db_dir.clone(), blocksize);
@@ -186,7 +186,6 @@ mod tests {
         // Clean up
         let mut db_table = db_dir.clone();
         db_table.push(filename);
-        fs::remove_file(db_table).ok();
-        fs::remove_dir(db_dir).ok();
+        fs::remove_dir_all(db_dir).ok();
     }
 }
