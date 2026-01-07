@@ -121,7 +121,7 @@ mod tests {
     use std::fs;
 
     #[test]
-    fn logmgr_test() {
+    fn log_mgr_test() {
         let db_dir = std::path::PathBuf::from(".temp/lmdb");
         let fm = FileMgr::new(db_dir.clone(), 128);
         let mut log_mgr = LogMgr::new(fm.clone(), "logfile".to_string());

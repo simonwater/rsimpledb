@@ -184,7 +184,7 @@ mod tests {
     use std::path::PathBuf;
 
     #[test]
-    fn bfmgr_concurrency_test() {
+    fn buffer_mgr_concurrency_test() {
         let db_dir = PathBuf::from(".temp/bmdb1");
         let mut fm = FileMgr::new(db_dir.clone(), 400);
         let lm = LogMgr::new(fm.clone(), "testlog.log".to_string());

@@ -155,7 +155,7 @@ mod tests {
 
     #[test]
     fn file_mgr_test() {
-        let db_dir = PathBuf::from(".tmp/fmdb");
+        let db_dir = PathBuf::from(".temp/fmdb");
         let blocksize = 400;
         let mut fm = FileMgr::new(db_dir.clone(), blocksize);
 

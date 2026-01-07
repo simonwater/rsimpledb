@@ -112,7 +112,7 @@ mod tests {
     use std::{fs, thread};
 
     #[test]
-    fn recovery_test() {
+    fn recovery_mgr_test() {
         let db_dir = ".temp/recoverydb";
         let handle = thread::spawn(|| {
             let mut db: DataBase = DataBase::new(db_dir);
