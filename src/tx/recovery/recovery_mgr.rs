@@ -92,7 +92,6 @@ impl RecoveryMgr {
         while iter.has_next() {
             if let Some(bytes) = iter.next() {
                 let rec = create_log_record(&bytes);
-                dbg!(&rec);
                 if rec.op() == LogRecordType::Checkpoint {
                     return;
                 }
@@ -116,20 +115,20 @@ mod tests {
     #[test]
     fn it_works() {
         let mut db: DataBase = DataBase::new(".temp/recoverydb");
-        let fm = db.file_mgr();
+        let mut fm = db.file_mgr();
         println!("{}", fm.length("testfile"));
         if fm.length("testfile") == 0 {
             initialize(&mut db);
         } else {
-            print_values("data already initialized:", db.file_mgr());
+            print_values("data already initialized:", &mut fm);
         }
         modify(&mut db);
-        print_log(db.log_mgr());
+        print_log(&mut db.log_mgr());
         //recover(&mut db);
     }
 
     fn initialize(db: &mut DataBase) {
-        let fm = db.file_mgr();
+        let mut fm = db.file_mgr();
         let blk1 = fm.append("testfile");
         let blk2 = fm.append("testfile");
         let mut tx1 = db.new_tx();
@@ -146,7 +145,7 @@ mod tests {
         tx2.set_string(&blk2, 30, "def", true).unwrap();
         tx1.commit();
         tx2.commit();
-        print_values("After Initialization:", db.file_mgr());
+        print_values("After Initialization:", &mut fm);
     }
 
     fn modify(db: &mut DataBase) {
@@ -168,19 +167,19 @@ mod tests {
         bm.flush_all(tx1.txnum());
         bm.flush_all(tx2.txnum());
 
-        let fm = db.file_mgr();
-        print_values("After Modification:", fm);
+        let mut fm = db.file_mgr();
+        print_values("After Modification:", &mut fm);
 
         tx1.rollback();
-        print_values("After partial rollback:", fm);
+        print_values("After partial rollback:", &mut fm);
     }
 
     fn _recover(db: &mut DataBase) {
         println!("start recovery");
         let mut tx = db.new_tx();
         tx.recover();
-        let fm = db.file_mgr();
-        print_values("After Recovery:", fm);
+        let mut fm = db.file_mgr();
+        print_values("After Recovery:", &mut fm);
     }
 
     fn print_values(msg: &str, fm: &mut FileMgr) {

@@ -62,8 +62,8 @@ mod tests {
 
     #[test]
     fn concurrency_mgr_test() {
-        let mut db = DataBase::new(".temp/concurrencydb");
-        let fm = db.file_mgr();
+        let db = DataBase::new(".temp/concurrencydb");
+        let mut fm = db.file_mgr();
         let _blk1 = fm.append("testfile");
         let _blk2 = fm.append("testfile");
 

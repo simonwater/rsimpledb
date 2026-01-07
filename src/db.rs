@@ -5,7 +5,7 @@ use crate::tx::{LockTable, Transaction};
 use std::path::PathBuf;
 
 pub const BLOCK_SIZE: usize = 400;
-pub const BUFFER_SIZE: usize = 8;
+pub const BUFFER_SIZE: usize = 100;
 pub const LOG_FILE: &'static str = "rsimpledb.log";
 
 #[derive(Clone)]
@@ -41,16 +41,16 @@ impl DataBase {
         DataBase { lm, bm, fm, lt }
     }
 
-    pub fn file_mgr(&mut self) -> &mut FileMgr {
-        &mut self.fm
+    pub fn file_mgr(&self) -> FileMgr {
+        self.fm.clone()
     }
 
-    pub fn log_mgr(&mut self) -> &mut LogMgr {
-        &mut self.lm
+    pub fn log_mgr(&self) -> LogMgr {
+        self.lm.clone()
     }
 
-    pub fn buffer_mgr(&mut self) -> &mut BufferMgr {
-        &mut self.bm
+    pub fn buffer_mgr(&self) -> BufferMgr {
+        self.bm.clone()
     }
 
     pub fn new_tx(&self) -> Transaction {

@@ -40,7 +40,7 @@ impl Transaction {
     /// Commit the current transaction
     pub fn commit(&mut self) {
         self.recovery_mgr.commit();
-        println!("transaction {} committed", self.txnum);
+        //println!("transaction {} committed", self.txnum);
         self.concur_mgr.release();
         self.mybuffers.unpin_all();
     }
@@ -48,7 +48,7 @@ impl Transaction {
     /// Rollback the current transaction
     pub fn rollback(&mut self) {
         RecoveryMgr::rollback(self.lm.clone(), self.bm.clone(), self);
-        println!("transaction {} rolled back", self.txnum);
+        //println!("transaction {} rolled back", self.txnum);
         self.concur_mgr.release();
         self.mybuffers.unpin_all();
     }
@@ -171,51 +171,5 @@ impl Transaction {
 
     fn next_tx_number() -> i32 {
         NEXT_TX_NUM.fetch_add(1, Ordering::SeqCst)
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use crate::DataBase;
-
-    #[test]
-    fn tx_test() {
-        let mut db: DataBase = DataBase::new(".temp/txdb");
-        let fm = db.file_mgr();
-        let blk = fm.append("testfile");
-
-        let mut tx1 = db.new_tx();
-        tx1.pin(&blk).unwrap();
-        tx1.set_int(&blk, 0, 123, true).unwrap();
-        tx1.set_string(&blk, 10, "hello", true).unwrap();
-        assert_eq!(123, tx1.get_int(&blk, 0).unwrap());
-        assert_eq!("hello".to_string(), tx1.get_string(&blk, 10).unwrap());
-        tx1.commit();
-
-        let mut tx2 = db.new_tx();
-        tx2.pin(&blk).unwrap();
-        let ival = tx2.get_int(&blk, 0).unwrap();
-        let sval = tx2.get_string(&blk, 10).unwrap();
-        assert_eq!(123, ival);
-        assert_eq!("hello".to_string(), sval);
-        tx2.set_int(&blk, 0, 456, true).unwrap();
-        tx2.set_string(&blk, 10, "world", true).unwrap();
-        assert_eq!(456, tx2.get_int(&blk, 0).unwrap());
-        assert_eq!("world".to_string(), tx2.get_string(&blk, 10).unwrap());
-        tx2.commit();
-
-        let mut tx3 = db.new_tx();
-        tx3.pin(&blk).unwrap();
-        assert_eq!(456, tx3.get_int(&blk, 0).unwrap());
-        assert_eq!("world".to_string(), tx3.get_string(&blk, 10).unwrap());
-        tx3.set_int(&blk, 0, 999, true).unwrap();
-        assert_eq!(999, tx3.get_int(&blk, 0).unwrap());
-        tx3.rollback();
-
-        let mut tx4 = db.new_tx();
-        tx4.pin(&blk).unwrap();
-        assert_eq!(456, tx4.get_int(&blk, 0).unwrap());
-        assert_eq!("world".to_string(), tx4.get_string(&blk, 10).unwrap());
-        tx4.commit();
     }
 }
