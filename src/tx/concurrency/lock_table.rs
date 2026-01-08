@@ -61,6 +61,8 @@ impl LockTable {
 
         loop {
             let mut locks = self.locks.lock().unwrap();
+            // 通常有其他锁时便不能获得X锁，但有一种情况例外：如果只有自己持有S锁，则可以直接升级为X锁。所以简单判断是否为0不能区分s是自己还是别人持有
+            // 现有逻辑x_lock调用前会先调用s_lock确保自己已经持有S锁，所以可以能区分locks中blk的值为1时表示自己持有s，大于1时表示其他事务也持有s
             if !self.has_other_slocks(&locks, blk) {
                 locks.insert(blk.clone(), -1);
                 return Ok(());
