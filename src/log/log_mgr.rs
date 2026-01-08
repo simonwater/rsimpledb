@@ -118,12 +118,14 @@ mod tests {
 
     use super::*;
     use crate::file::FileMgr;
-    use std::fs;
+    use crate::util::TempFileGuard;
+    use std::path::PathBuf;
 
     #[test]
     fn log_mgr_test() {
-        let db_dir = std::path::PathBuf::from(".temp/lmdb");
-        let fm = FileMgr::new(db_dir.clone(), 128);
+        let db_dir = ".temp/lmdb";
+        let _guard = TempFileGuard::new(db_dir);
+        let fm = FileMgr::new(PathBuf::from(db_dir), 128);
         let mut log_mgr = LogMgr::new(fm.clone(), "logfile".to_string());
 
         create_log_records(1, 35, &mut log_mgr);
@@ -132,7 +134,6 @@ mod tests {
         create_log_records(36, 70, &mut log_mgr);
         log_mgr.flush(65);
         check_log_records(36, 70, &mut log_mgr);
-        fs::remove_dir_all(db_dir).ok();
     }
 
     fn check_log_records(start: i32, end: i32, log_mgr: &mut LogMgr) {

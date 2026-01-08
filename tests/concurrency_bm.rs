@@ -3,14 +3,15 @@ use rsimpledb::file::BlockId;
 use rsimpledb::file::FileMgr;
 use rsimpledb::log::LogMgr;
 use rsimpledb::thread::MultiThreadRunner;
-use std::fs;
+use rsimpledb::util::TempFileGuard;
 use std::path::PathBuf;
 
 #[test]
 fn test_buffer_manager_concurrency() {
     // 1. 初始化文件管理器和缓冲区管理器
-    let db_dir = PathBuf::from(".temp/bmdb2");
-    let mut fm = FileMgr::new(db_dir.clone(), 400);
+    let db_dir = ".temp/bmdb2";
+    let _guard = TempFileGuard::new(db_dir);
+    let mut fm = FileMgr::new(PathBuf::from(db_dir), 400);
     let lm = LogMgr::new(fm.clone(), "testlog.log".to_string());
     let bm = BufferMgr::new(fm.clone(), lm.clone(), 10);
 
@@ -44,5 +45,4 @@ fn test_buffer_manager_concurrency() {
         bm.unpin(buff_arc);
         vec![format!("{:<12}", blk.number())]
     });
-    fs::remove_dir_all(db_dir).ok();
 }

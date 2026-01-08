@@ -179,16 +179,16 @@ pub mod tests {
 
     use crate::DataBase;
     use crate::file::BlockId;
-    use std::fs;
+    use crate::util::TempFileGuard;
 
     #[test]
     fn tx_simple_test() {
         let db_dir = ".temp/txdb1";
+        let _guard = TempFileGuard::new(db_dir);
         let db: DataBase = DataBase::new(db_dir);
         let mut fm = db.file_mgr();
         let blk = fm.append("testfile");
         tx_test(db, blk);
-        fs::remove_dir_all(db_dir).ok();
     }
 
     fn tx_test(db: DataBase, blk: BlockId) {

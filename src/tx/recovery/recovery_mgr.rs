@@ -109,11 +109,13 @@ impl RecoveryMgr {
 mod tests {
     use crate::DataBase;
     use crate::file::{BlockId, FileMgr, Page};
-    use std::{fs, thread};
+    use crate::util::TempFileGuard;
+    use std::thread;
 
     #[test]
     fn recovery_mgr_test() {
         let db_dir = ".temp/recoverydb";
+        let _guard = TempFileGuard::new(db_dir);
         let handle = thread::spawn(|| {
             let mut db: DataBase = DataBase::new(db_dir);
             initialize(&mut db);
@@ -125,7 +127,6 @@ mod tests {
         // 主线程模拟系统恢复
         let db: DataBase = DataBase::new(db_dir);
         check_initial_values(&mut db.file_mgr());
-        fs::remove_dir_all(db_dir).ok();
     }
 
     fn initialize(db: &mut DataBase) {

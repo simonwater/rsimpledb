@@ -1,10 +1,13 @@
 use rsimpledb::DataBase;
 use rsimpledb::file::BlockId;
 use rsimpledb::thread::MultiThreadRunner;
+use rsimpledb::util::TempFileGuard;
 
 #[test]
 pub fn tx_multi_thread() {
-    let db = DataBase::new_with_size(".temp/txdb2", 400, 500);
+    let db_dir = ".temp/txdb2";
+    let _guard = TempFileGuard::new(db_dir);
+    let db = DataBase::new_with_size(db_dir, 400, 500);
     let headers = vec![];
     let runner = MultiThreadRunner::new(100, headers);
     runner.excute(move |_tid| {

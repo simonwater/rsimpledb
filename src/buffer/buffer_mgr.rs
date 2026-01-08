@@ -180,13 +180,14 @@ impl BufferMgrState {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::fs;
+    use crate::util::TempFileGuard;
     use std::path::PathBuf;
 
     #[test]
     fn buffer_mgr_concurrency_test() {
-        let db_dir = PathBuf::from(".temp/bmdb1");
-        let mut fm = FileMgr::new(db_dir.clone(), 400);
+        let db_dir = ".temp/bmdb1";
+        let _guard = TempFileGuard::new(db_dir);
+        let mut fm = FileMgr::new(PathBuf::from(db_dir), 400);
         let lm = LogMgr::new(fm.clone(), "testlog.log".to_string());
         let bm = BufferMgr::new(fm.clone(), lm.clone(), 10);
 
@@ -209,7 +210,5 @@ mod tests {
             assert_eq!(msg, data);
         }
         bm.unpin(buff_arc);
-
-        fs::remove_dir_all(db_dir).ok();
     }
 }

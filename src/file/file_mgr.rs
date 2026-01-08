@@ -150,14 +150,15 @@ impl FileMgrState {
 #[cfg(test)]
 mod tests {
     use super::{BlockId, FileMgr, Page};
-    use std::fs;
+    use crate::util::TempFileGuard;
     use std::path::PathBuf;
 
     #[test]
     fn file_mgr_test() {
-        let db_dir = PathBuf::from(".temp/fmdb");
+        let db_dir = ".temp/fmdb";
+        let _guard = TempFileGuard::new(db_dir);
         let blocksize = 400;
-        let mut fm = FileMgr::new(db_dir.clone(), blocksize);
+        let mut fm = FileMgr::new(PathBuf::from(db_dir), blocksize);
 
         let filename = "testfile";
         let blk = fm.append(filename); // 在末尾追加
@@ -182,10 +183,5 @@ mod tests {
         fm.read(&blk, &mut p4);
         assert_eq!(p4.get_string(88), "abcdefghijklm");
         assert_eq!(p4.get_int(10), 123);
-
-        // Clean up
-        let mut db_table = db_dir.clone();
-        db_table.push(filename);
-        fs::remove_dir_all(db_dir).ok();
     }
 }

@@ -1,11 +1,13 @@
 use rsimpledb::file::FileMgr;
 use rsimpledb::file::Page;
 use rsimpledb::log::LogMgr;
-use std::fs;
+use rsimpledb::util::TempFileGuard;
+use std::path::PathBuf;
 
 pub fn main() {
-    let db_dir = std::path::PathBuf::from(".temp/lmdb");
-    let fm = FileMgr::new(db_dir.clone(), 128);
+    let db_dir = ".temp/lmdb";
+    let _guard = TempFileGuard::new(db_dir);
+    let fm = FileMgr::new(PathBuf::from(db_dir), 128);
     let mut log_mgr = LogMgr::new(fm.clone(), "logfile".to_string());
     print_log_records("The initial empty log file:", &mut log_mgr);
 
@@ -18,7 +20,6 @@ pub fn main() {
         "The log file now has these records after flush 65:",
         &mut log_mgr,
     );
-    fs::remove_dir_all(db_dir).ok();
 }
 
 fn print_log_records(msg: &str, log_mgr: &mut LogMgr) {
