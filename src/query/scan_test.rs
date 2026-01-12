@@ -1,0 +1,100 @@
+use crate::DataBase;
+use crate::query::{
+    Constant, Expression, Predicate, ProductScan, ProjectScan, Scan, SelectScan, Term, UpdateScan,
+};
+use crate::record::{Layout, Schema, TableScan};
+use crate::util::TempFileGuard;
+use std::cell::RefCell;
+use std::rc::Rc;
+
+#[test]
+fn scan_test1() {
+    let db_dir = ".temp/scantest1";
+    let _guard = TempFileGuard::new(db_dir);
+    let db: DataBase = DataBase::new(db_dir);
+    let mut sch = Schema::new();
+    sch.add_int_field("A");
+    sch.add_string_field("B", 9);
+    let layout = Rc::new(Layout::new(Rc::new(sch)));
+    let tx = Rc::new(RefCell::new(db.new_tx()));
+
+    let mut s1 = TableScan::new(Rc::clone(&tx), "T", Rc::clone(&layout));
+    for i in 1..=50 {
+        s1.insert();
+        s1.set_int("A", i);
+        s1.set_string("B", &format!("rec{}", i));
+    }
+    s1.close();
+
+    let s2 = TableScan::new(Rc::clone(&tx), "T", Rc::clone(&layout));
+    let c = Constant::from_int(10);
+    let t = Term::new(Expression::Field("A".to_string()), Expression::Constant(c));
+    let pred = Predicate::from_term(t);
+    let s3 = SelectScan::new(Box::new(s2), pred);
+    let fields = vec!["B".to_string()];
+    let mut s4 = ProjectScan::new(Box::new(s3), fields);
+    let mut cnt = 0;
+    while s4.next() {
+        cnt += 1;
+        assert_eq!(false, s4.has_field("A"));
+        assert_eq!("rec10", s4.get_string("B"));
+    }
+    assert_eq!(1, cnt);
+}
+
+#[test]
+fn scan_test2() {
+    let db_dir = ".temp/scantest2";
+    let _guard = TempFileGuard::new(db_dir);
+    let db: DataBase = DataBase::new(db_dir);
+    let tx = Rc::new(RefCell::new(db.new_tx()));
+    // create tables
+    let mut sch1 = Schema::new();
+    sch1.add_int_field("A");
+    sch1.add_string_field("B", 9);
+    let layout1 = Rc::new(Layout::new(Rc::new(sch1)));
+    let mut sch2 = Schema::new();
+    sch2.add_int_field("C");
+    sch2.add_string_field("D", 9);
+    let layout2 = Rc::new(Layout::new(Rc::new(sch2)));
+
+    // insert records
+    let mut ts1 = TableScan::new(Rc::clone(&tx), "T1", Rc::clone(&layout1));
+    for i in 1..=100 {
+        ts1.insert();
+        ts1.set_int("A", i);
+        ts1.set_string("B", &format!("t1_rec{}", i));
+    }
+    ts1.close();
+
+    let mut ts2 = TableScan::new(Rc::clone(&tx), "T2", Rc::clone(&layout2));
+    for i in 1..=50 {
+        ts2.insert();
+        ts2.set_int("C", i * 2);
+        ts2.set_string("D", &format!("t2_rec{}", i * 2));
+    }
+    ts2.close();
+
+    let ts1 = TableScan::new(Rc::clone(&tx), "T1", Rc::clone(&layout1));
+    let ts2 = TableScan::new(Rc::clone(&tx), "T2", Rc::clone(&layout2));
+    let ts3 = ProductScan::new(Box::new(ts1), Box::new(ts2));
+    // selecting all records where A=C
+    let t = Term::new(
+        Expression::Field("A".to_string()),
+        Expression::Field("C".to_string()),
+    );
+    let pred = Predicate::from_term(t);
+    let ts4 = SelectScan::new(Box::new(ts3), pred);
+
+    // projecting on [B,D]
+    let fields = vec!["B".to_string(), "D".to_string()];
+    let mut ts5 = ProjectScan::new(Box::new(ts4), fields);
+    let mut cnt = 0;
+    while ts5.next() {
+        cnt += 1;
+        assert_eq!(format!("t1_rec{}", cnt * 2), ts5.get_string("B"));
+        assert_eq!(format!("t2_rec{}", cnt * 2), ts5.get_string("D"));
+    }
+    ts5.close();
+    tx.borrow_mut().commit();
+}

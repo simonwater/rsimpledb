@@ -34,6 +34,7 @@ impl TableScan {
     }
 
     fn move_to_block(&mut self, blknum: i32) {
+        self.close();
         let blk = BlockId::new(self.filename.to_string(), blknum);
         self.rp = Some(RecordPage::new(
             Rc::clone(&self.tx),
@@ -43,6 +44,7 @@ impl TableScan {
     }
 
     fn move_to_new_block(&mut self) {
+        self.close();
         let blk = self.tx.borrow_mut().append(&self.filename).unwrap();
         let mut rp = RecordPage::new(Rc::clone(&self.tx), blk, Rc::clone(&self.layout));
         rp.format().unwrap();
@@ -120,6 +122,10 @@ impl Scan for TableScan {
     fn close(&mut self) {
         self.rp = None;
     }
+
+    fn as_update_scan(&mut self) -> Option<&mut dyn UpdateScan> {
+        Some(self as &mut dyn UpdateScan)
+    }
 }
 
 impl UpdateScan for TableScan {
@@ -176,7 +182,7 @@ impl UpdateScan for TableScan {
         }
     }
 
-    fn get_rid(&self) -> RID {
+    fn get_rid(&mut self) -> RID {
         if let Some(ref rp) = self.rp {
             RID::new(rp.block().number(), self.currentslot)
         } else {

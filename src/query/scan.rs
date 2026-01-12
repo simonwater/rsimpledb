@@ -1,4 +1,4 @@
-use crate::query::Constant;
+use crate::query::{Constant, UpdateScan};
 
 /// The interface implemented by each query scan
 pub trait Scan {
@@ -22,4 +22,8 @@ pub trait Scan {
 
     /// Close the scan and its subscans, if any
     fn close(&mut self);
+
+    fn as_update_scan(&mut self) -> Option<&mut dyn UpdateScan> {
+        None
+    }
 }
