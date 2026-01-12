@@ -2,17 +2,18 @@ use crate::file::Page;
 use crate::record::Schema;
 use crate::record::sql_types::INTEGER;
 use std::collections::HashMap;
+use std::rc::Rc;
 
 /// Description of the structure of a record
-pub struct Layout<'a> {
-    schema: &'a mut Schema,
+pub struct Layout {
+    schema: Rc<Schema>,
     offsets: HashMap<String, i32>,
     slotsize: i32,
 }
 
-impl<'a> Layout<'a> {
+impl Layout {
     /// Create a Layout object from a schema
-    pub fn new(schema: &'a mut Schema) -> Self {
+    pub fn new(schema: Rc<Schema>) -> Self {
         let mut offsets = HashMap::new();
         let mut pos = 4i32; // leave space for the empty/inuse flag (Integer.BYTES)
         for fldname in schema.fields() {
@@ -27,11 +28,7 @@ impl<'a> Layout<'a> {
     }
 
     /// Create a Layout object from the specified metadata
-    pub fn from_metadata(
-        schema: &'a mut Schema,
-        offsets: HashMap<String, i32>,
-        slotsize: i32,
-    ) -> Self {
+    pub fn from_metadata(schema: Rc<Schema>, offsets: HashMap<String, i32>, slotsize: i32) -> Self {
         Layout {
             schema,
             offsets,
@@ -72,7 +69,7 @@ mod tests {
         sch.add_int_field("A");
         sch.add_string_field("B", 9);
         sch.add_int_field("C");
-        let layout = Layout::new(&mut sch);
+        let layout = Layout::new(Rc::new(sch));
         assert_eq!(4, layout.offset("A"));
         assert_eq!(8, layout.offset("B"));
         assert_eq!(48, layout.offset("C"));

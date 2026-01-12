@@ -3,33 +3,35 @@ use crate::record::Layout;
 use crate::record::sql_types::INTEGER;
 use crate::tx::Transaction;
 use crate::tx::concurrency::LockAbortException;
+use std::cell::RefCell;
+use std::rc::Rc;
 
 pub const EMPTY: i32 = 0;
 pub const USED: i32 = 1;
 
 /// Store a record at a given location in a block
-pub struct RecordPage<'a> {
-    tx: &'a mut Transaction,
-    blk: &'a BlockId,
-    layout: &'a Layout<'a>,
+pub struct RecordPage {
+    tx: Rc<RefCell<Transaction>>,
+    blk: BlockId,
+    layout: Rc<Layout>,
 }
 
-impl<'a> RecordPage<'a> {
-    pub fn new(tx: &'a mut Transaction, blk: &'a BlockId, layout: &'a Layout) -> Self {
-        tx.pin(blk).expect("Failed to pin block");
+impl RecordPage {
+    pub fn new(tx: Rc<RefCell<Transaction>>, blk: BlockId, layout: Rc<Layout>) -> Self {
+        tx.borrow_mut().pin(&blk).expect("Failed to pin block");
         RecordPage { tx, blk, layout }
     }
 
     /// Return the integer value stored for the specified field of a specified slot
     pub fn get_int(&mut self, slot: i32, fldname: &str) -> Result<i32, LockAbortException> {
         let fldpos = self.offset(slot) + self.layout.offset(fldname);
-        self.tx.get_int(&self.blk, fldpos as usize)
+        self.tx.borrow_mut().get_int(&self.blk, fldpos as usize)
     }
 
     /// Return the string value stored for the specified field of the specified slot
     pub fn get_string(&mut self, slot: i32, fldname: &str) -> Result<String, LockAbortException> {
         let fldpos = self.offset(slot) + self.layout.offset(fldname);
-        self.tx.get_string(&self.blk, fldpos as usize)
+        self.tx.borrow_mut().get_string(&self.blk, fldpos as usize)
     }
 
     /// Store an integer at the specified field of the specified slot
@@ -40,7 +42,9 @@ impl<'a> RecordPage<'a> {
         val: i32,
     ) -> Result<(), LockAbortException> {
         let fldpos = self.offset(slot) + self.layout.offset(fldname);
-        self.tx.set_int(&self.blk, fldpos as usize, val, true)
+        self.tx
+            .borrow_mut()
+            .set_int(&self.blk, fldpos as usize, val, true)
     }
 
     /// Store a string at the specified field of the specified slot
@@ -51,7 +55,9 @@ impl<'a> RecordPage<'a> {
         val: &str,
     ) -> Result<(), LockAbortException> {
         let fldpos = self.offset(slot) + self.layout.offset(fldname);
-        self.tx.set_string(&self.blk, fldpos as usize, val, true)
+        self.tx
+            .borrow_mut()
+            .set_string(&self.blk, fldpos as usize, val, true)
     }
 
     pub fn delete(&mut self, slot: i32) -> Result<(), LockAbortException> {
@@ -63,14 +69,19 @@ impl<'a> RecordPage<'a> {
         let mut slot = 0;
         while self.is_valid_slot(slot) {
             self.tx
+                .borrow_mut()
                 .set_int(&self.blk, self.offset(slot) as usize, EMPTY, false)?;
             let sch = self.layout.schema();
             for fldname in sch.fields() {
                 let fldpos = self.offset(slot) + self.layout.offset(fldname);
                 if sch.type_(fldname) == INTEGER {
-                    self.tx.set_int(&self.blk, fldpos as usize, 0, false)?;
+                    self.tx
+                        .borrow_mut()
+                        .set_int(&self.blk, fldpos as usize, 0, false)?;
                 } else {
-                    self.tx.set_string(&self.blk, fldpos as usize, "", false)?;
+                    self.tx
+                        .borrow_mut()
+                        .set_string(&self.blk, fldpos as usize, "", false)?;
                 }
             }
             slot += 1;
@@ -96,6 +107,7 @@ impl<'a> RecordPage<'a> {
 
     fn set_flag(&mut self, slot: i32, flag: i32) -> Result<(), LockAbortException> {
         self.tx
+            .borrow_mut()
             .set_int(&self.blk, self.offset(slot) as usize, flag, true)
     }
 
@@ -104,6 +116,7 @@ impl<'a> RecordPage<'a> {
         while self.is_valid_slot(current_slot) {
             let flag_val = {
                 self.tx
+                    .borrow_mut()
                     .get_int(&self.blk, self.offset(current_slot) as usize)?
             };
             if flag_val == flag {
@@ -115,7 +128,7 @@ impl<'a> RecordPage<'a> {
     }
 
     fn is_valid_slot(&self, slot: i32) -> bool {
-        self.offset(slot + 1) <= self.tx.block_size() as i32
+        self.offset(slot + 1) <= self.tx.borrow_mut().block_size() as i32
     }
 
     fn offset(&self, slot: i32) -> i32 {
@@ -123,9 +136,9 @@ impl<'a> RecordPage<'a> {
     }
 }
 
-impl Drop for RecordPage<'_> {
+impl Drop for RecordPage {
     fn drop(&mut self) {
-        self.tx.unpin(&self.blk);
+        self.tx.borrow_mut().unpin(&self.blk);
     }
 }
 
@@ -141,21 +154,21 @@ mod tests {
         let db_dir = ".temp/recorddb";
         let _guard = TempFileGuard::new(db_dir);
         let db: DataBase = DataBase::new(db_dir);
-        let mut tx = db.new_tx();
+        let tx = Rc::new(RefCell::new(db.new_tx()));
 
         // 创建模式和布局
         let mut sch = Schema::new();
         sch.add_int_field("A");
         sch.add_string_field("B", 9);
 
-        let layout = Layout::new(&mut sch);
+        let layout = Layout::new(Rc::new(sch));
         assert_eq!(4, layout.offset("A"));
         assert_eq!(8, layout.offset("B"));
         assert_eq!(48, layout.slot_size());
 
         // 在文件末尾追加一个块并创建 RecordPage
-        let blk = tx.append("testfile").expect("append failed");
-        let mut rp = RecordPage::new(&mut tx, &blk, &layout);
+        let blk = tx.borrow_mut().append("testfile").expect("append failed");
+        let mut rp = RecordPage::new(Rc::clone(&tx), blk, Rc::new(layout));
         rp.format().expect("format failed");
 
         // 往slot中填充记录
@@ -198,6 +211,6 @@ mod tests {
 
         // 显式 drop RecordPage（会在 Drop 中 unpin）并提交事务
         drop(rp);
-        tx.commit();
+        tx.borrow_mut().commit();
     }
 }
