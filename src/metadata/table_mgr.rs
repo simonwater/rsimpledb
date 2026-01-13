@@ -37,14 +37,14 @@ impl TableMgr {
         };
 
         if is_new {
-            tm.create_table(Rc::clone(&tx), "tblcat", tcat_schema);
-            tm.create_table(Rc::clone(&tx), "fldcat", fcat_schema);
+            tm.create_table("tblcat", tcat_schema, Rc::clone(&tx));
+            tm.create_table("fldcat", fcat_schema, Rc::clone(&tx));
         }
         tm
     }
 
     /// Create a new table having the specified name and schema
-    pub fn create_table(&self, tx: Rc<RefCell<Transaction>>, tblname: &str, sch: Schema) {
+    pub fn create_table(&self, tblname: &str, sch: Schema, tx: Rc<RefCell<Transaction>>) {
         let layout = Layout::new(sch);
         // insert one record into tblcat
         let mut tcat = TableScan::new(Rc::clone(&tx), "tblcat", Rc::clone(&self.tcat_layout));
@@ -113,7 +113,7 @@ mod tests {
         let mut sch = Schema::new();
         sch.add_int_field("A");
         sch.add_string_field("B", 9);
-        tm.create_table(Rc::clone(&tx), "MyTable", sch);
+        tm.create_table("MyTable", sch, Rc::clone(&tx));
 
         let layout = tm.get_layout("MyTable", Rc::clone(&tx));
         let size = layout.slot_size();

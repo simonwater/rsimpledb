@@ -7,7 +7,7 @@ use std::cell::RefCell;
 use std::path::PathBuf;
 use std::rc::Rc;
 
-pub const BLOCK_SIZE: usize = 400;
+pub const BLOCK_SIZE: usize = 1024;
 pub const BUFFER_SIZE: usize = 100;
 pub const LOG_FILE: &'static str = "rsimpledb.log";
 
@@ -63,6 +63,10 @@ impl DataBase {
 
     pub fn buffer_mgr(&self) -> BufferMgr {
         self.bm.clone()
+    }
+
+    pub fn md_mgr(&self) -> &MetadataMgr {
+        &self.mdm
     }
 
     pub fn new_tx(&self) -> Transaction {

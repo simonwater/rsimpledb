@@ -20,7 +20,7 @@ impl ViewMgr {
             let mut sch = Schema::new();
             sch.add_string_field("viewname", MAX_NAME);
             sch.add_string_field("viewdef", MAX_VIEWDEF);
-            tbl_mgr.create_table(Rc::clone(&tx), "viewcat", sch);
+            tbl_mgr.create_table("viewcat", sch, Rc::clone(&tx));
         }
         ViewMgr { tbl_mgr }
     }

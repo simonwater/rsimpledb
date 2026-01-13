@@ -27,7 +27,7 @@ impl IndexMgr {
             sch.add_string_field("indexname", MAX_NAME);
             sch.add_string_field("tablename", MAX_NAME);
             sch.add_string_field("fieldname", MAX_NAME);
-            tbl_mgr.create_table(Rc::clone(&tx), "idxcat", sch);
+            tbl_mgr.create_table("idxcat", sch, Rc::clone(&tx));
         }
         let layout = tbl_mgr.get_layout("idxcat", tx);
         IndexMgr {

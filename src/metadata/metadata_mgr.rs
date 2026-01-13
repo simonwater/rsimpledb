@@ -30,7 +30,7 @@ impl MetadataMgr {
     }
 
     pub fn create_table(&self, tblname: &str, sch: Schema, tx: Rc<RefCell<Transaction>>) {
-        self.tbl_mgr.create_table(tx, tblname, sch);
+        self.tbl_mgr.create_table(tblname, sch, tx);
     }
 
     pub fn get_layout(&self, tblname: &str, tx: Rc<RefCell<Transaction>>) -> Layout {
@@ -70,5 +70,65 @@ impl MetadataMgr {
         tx: Rc<RefCell<Transaction>>,
     ) -> StatInfo {
         self.stat_mgr.get_stat_info(tblname, layout, tx)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::DataBase;
+    use crate::query::UpdateScan;
+    use crate::record::{TableScan, layout};
+    use crate::util::TempFileGuard;
+
+    #[test]
+    fn mdm_test() {
+        let db_dir = ".temp/mdmtest";
+        let _guard = TempFileGuard::new(db_dir);
+        let db: DataBase = DataBase::new(db_dir);
+        let tx = Rc::new(RefCell::new(db.new_tx()));
+        let mut mdm = MetadataMgr::new(true, Rc::clone(&tx));
+
+        // Part 1: Table Metadata
+        let mut sch = Schema::new();
+        sch.add_int_field("A");
+        sch.add_string_field("B", 9);
+        mdm.create_table("MyTable", sch, Rc::clone(&tx));
+        let layout = mdm.get_layout("MyTable", Rc::clone(&tx));
+        let layout = Rc::new(layout);
+        let size = layout.slot_size();
+        assert_eq!(48, size);
+        let sch2 = layout.schema();
+        assert_eq!(true, sch2.has_field("A"));
+        assert_eq!(4, sch2.ftype("A"));
+        assert_eq!(true, sch2.has_field("B"));
+        assert_eq!(12, sch2.ftype("B"));
+        assert_eq!(9, sch2.length("B"));
+
+        // Part 2: Statistics Metadata
+        let mut ts = TableScan::new(Rc::clone(&tx), "MyTable", Rc::clone(&layout));
+        for i in 1..=50 {
+            ts.insert();
+            ts.set_int("A", i);
+            ts.set_string("B", &format!("rec{i}"));
+        }
+        let si = mdm.get_stat_info("MyTable", Rc::clone(&layout), Rc::clone(&tx));
+        assert_eq!(3, si.blocks_accessed());
+        assert_eq!(50, si.records_output());
+        assert_eq!(17, si.distinct_values("A"));
+        assert_eq!(17, si.distinct_values("B"));
+
+        // Part 3: View Metadata
+        let viewdef = "select B from MyTable where A = 1";
+        mdm.create_view("view_a", viewdef, Rc::clone(&tx));
+        assert_eq!(viewdef, mdm.get_view_def("view_a", Rc::clone(&tx)).unwrap());
+
+        // Part 4: Index Metadata
+        mdm.create_index("idx_a", "MyTable", "A", Rc::clone(&tx));
+        mdm.create_index("idx_b", "MyTable", "B", Rc::clone(&tx));
+        let idxmap = mdm.get_index_info("MyTable", Rc::clone(&tx));
+
+        assert!(idxmap.contains_key("A"));
+        assert!(idxmap.contains_key("B"));
     }
 }
