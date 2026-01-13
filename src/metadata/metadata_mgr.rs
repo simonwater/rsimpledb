@@ -78,7 +78,7 @@ mod tests {
     use super::*;
     use crate::DataBase;
     use crate::query::UpdateScan;
-    use crate::record::{TableScan, layout};
+    use crate::record::TableScan;
     use crate::util::TempFileGuard;
 
     #[test]
@@ -87,7 +87,7 @@ mod tests {
         let _guard = TempFileGuard::new(db_dir);
         let db: DataBase = DataBase::new(db_dir);
         let tx = Rc::new(RefCell::new(db.new_tx()));
-        let mut mdm = MetadataMgr::new(true, Rc::clone(&tx));
+        let mdm = MetadataMgr::new(true, Rc::clone(&tx));
 
         // Part 1: Table Metadata
         let mut sch = Schema::new();
