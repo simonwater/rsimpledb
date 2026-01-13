@@ -70,7 +70,7 @@ mod tests {
     use super::*;
     use crate::DataBase;
     use crate::query::UpdateScan;
-    use crate::record::{Layout, Schema, TableScan, layout};
+    use crate::record::{Layout, Schema, TableScan};
     use crate::util::TempFileGuard;
     use std::cell::RefCell;
     use std::rc::Rc;

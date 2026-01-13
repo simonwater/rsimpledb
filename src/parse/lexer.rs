@@ -1,4 +1,4 @@
-use crate::parse::BadSyntaxException;
+//use crate::parse::BadSyntaxException;
 use std::collections::HashSet;
 
 /// A lexical analyzer for SQL
@@ -92,7 +92,6 @@ impl Lexer {
         if !self.match_keyword(w) {
             panic!("Syntax error: expected keyword {}", w);
         }
-        let start = self.pos;
         while self.pos < self.s.len() {
             let c = self.s.chars().nth(self.pos).unwrap();
             if c.is_ascii_alphanumeric() || c == '_' {
@@ -139,7 +138,6 @@ impl Lexer {
         if self.pos >= self.s.len() {
             return false;
         }
-        let saved_pos = self.pos;
         let start = self.pos;
         let mut pos = self.pos;
         while pos < self.s.len() {
@@ -176,10 +174,6 @@ impl Lexer {
         }
     }
 
-    fn is_id_start(&self, c: char) -> bool {
-        c.is_ascii_alphabetic()
-    }
-
     fn is_id_char(&self, c: char) -> bool {
         c.is_ascii_alphanumeric() || c == '_'
     }
@@ -201,10 +195,6 @@ impl Lexer {
         } else {
             false
         }
-    }
-
-    fn is_end(&self) -> bool {
-        self.pos == self.s.len()
     }
 }
 

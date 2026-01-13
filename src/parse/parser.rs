@@ -1,6 +1,6 @@
 use crate::parse::{
-    BadSyntaxException, CreateIndexData, CreateTableData, CreateViewData, DeleteData, InsertData,
-    Lexer, ModifyData, QueryData,
+    CreateIndexData, CreateTableData, CreateViewData, DeleteData, InsertData, Lexer, ModifyData,
+    QueryData,
 };
 use crate::query::{Constant, Expression, Predicate, Term};
 use crate::record::Schema;
