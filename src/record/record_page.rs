@@ -1,6 +1,6 @@
 use crate::file::BlockId;
 use crate::record::Layout;
-use crate::record::sql_types::INTEGER;
+use crate::record::SqlTypes;
 use crate::tx::Transaction;
 use crate::tx::concurrency::LockAbortException;
 use std::cell::RefCell;
@@ -74,7 +74,7 @@ impl RecordPage {
             let sch = self.layout.schema();
             for fldname in sch.fields() {
                 let fldpos = self.offset(slot) + self.layout.offset(fldname);
-                if sch.type_(fldname) == INTEGER {
+                if sch.ftype(fldname) == SqlTypes::INTEGER {
                     self.tx
                         .borrow_mut()
                         .set_int(&self.blk, fldpos as usize, 0, false)?;
@@ -136,11 +136,11 @@ impl RecordPage {
     }
 }
 
-impl Drop for RecordPage {
-    fn drop(&mut self) {
-        self.tx.borrow_mut().unpin(&self.blk);
-    }
-}
+// impl Drop for RecordPage {
+//     fn drop(&mut self) {
+//         self.tx.borrow_mut().unpin(&self.blk);
+//     }
+// }
 
 #[cfg(test)]
 mod tests {
@@ -161,7 +161,7 @@ mod tests {
         sch.add_int_field("A");
         sch.add_string_field("B", 9);
 
-        let layout = Layout::new(Rc::new(sch));
+        let layout = Layout::new(sch);
         assert_eq!(4, layout.offset("A"));
         assert_eq!(8, layout.offset("B"));
         assert_eq!(48, layout.slot_size());

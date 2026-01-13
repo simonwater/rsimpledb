@@ -1,4 +1,4 @@
-use crate::record::sql_types::{INTEGER, VARCHAR};
+use crate::record::SqlTypes;
 use std::collections::HashMap;
 
 #[derive(Clone)]
@@ -29,15 +29,15 @@ impl Schema {
     }
 
     pub fn add_int_field(&mut self, fldname: &str) {
-        self.add_field(fldname, INTEGER, 0);
+        self.add_field(fldname, SqlTypes::INTEGER, 0);
     }
 
     pub fn add_string_field(&mut self, fldname: &str, length: i32) {
-        self.add_field(fldname, VARCHAR, length);
+        self.add_field(fldname, SqlTypes::VARCHAR, length);
     }
 
     pub fn add(&mut self, fldname: &str, sch: &Schema) {
-        let type_ = sch.type_(fldname);
+        let type_ = sch.ftype(fldname);
         let length = sch.length(fldname);
         self.add_field(fldname, type_, length);
     }
@@ -56,7 +56,7 @@ impl Schema {
         self.fields.iter().any(|f| f == fldname)
     }
 
-    pub fn type_(&self, fldname: &str) -> i32 {
+    pub fn ftype(&self, fldname: &str) -> i32 {
         self.info.get(fldname).map(|f| f.type_).unwrap_or(0)
     }
 

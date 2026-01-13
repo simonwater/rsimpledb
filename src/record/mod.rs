@@ -9,4 +9,5 @@ pub use layout::Layout;
 pub use record_page::RecordPage;
 pub use rid::RID;
 pub use schema::Schema;
+pub use sql_types as SqlTypes;
 pub use table_scan::TableScan;

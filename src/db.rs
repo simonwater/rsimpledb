@@ -1,8 +1,11 @@
 use crate::buffer::BufferMgr;
 use crate::file::FileMgr;
 use crate::log::LogMgr;
+use crate::metadata::MetadataMgr;
 use crate::tx::{LockTable, Transaction};
+use std::cell::RefCell;
 use std::path::PathBuf;
+use std::rc::Rc;
 
 pub const BLOCK_SIZE: usize = 400;
 pub const BUFFER_SIZE: usize = 100;
@@ -13,6 +16,7 @@ pub struct DataBase {
     lm: LogMgr,
     bm: BufferMgr,
     fm: FileMgr,
+    mdm: MetadataMgr,
     lt: LockTable,
 }
 
@@ -28,17 +32,25 @@ impl DataBase {
         let bm = BufferMgr::new(fm.clone(), lm.clone(), numbuffs);
         let lt = LockTable::new();
 
-        let mut tx = Transaction::new(fm.clone(), lm.clone(), bm.clone(), lt.clone());
+        let tx = Transaction::new(fm.clone(), lm.clone(), bm.clone(), lt.clone());
+        let tx = Rc::new(RefCell::new(tx));
         let isnew = fm.is_new();
+        let mdm = MetadataMgr::new(isnew, Rc::clone(&tx));
         if isnew {
             println!("creating new database");
         } else {
             println!("recovering existing database");
-            tx.recover();
+            tx.borrow_mut().recover();
         }
-        tx.commit();
+        tx.borrow_mut().commit();
 
-        DataBase { lm, bm, fm, lt }
+        DataBase {
+            lm,
+            bm,
+            fm,
+            lt,
+            mdm,
+        }
     }
 
     pub fn file_mgr(&self) -> FileMgr {

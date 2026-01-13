@@ -1,19 +1,18 @@
 use crate::file::Page;
 use crate::record::Schema;
-use crate::record::sql_types::INTEGER;
+use crate::record::SqlTypes;
 use std::collections::HashMap;
-use std::rc::Rc;
 
 /// Description of the structure of a record
 pub struct Layout {
-    schema: Rc<Schema>,
+    schema: Schema,
     offsets: HashMap<String, i32>,
     slotsize: i32,
 }
 
 impl Layout {
     /// Create a Layout object from a schema
-    pub fn new(schema: Rc<Schema>) -> Self {
+    pub fn new(schema: Schema) -> Self {
         let mut offsets = HashMap::new();
         let mut pos = 4i32; // leave space for the empty/inuse flag (Integer.BYTES)
         for fldname in schema.fields() {
@@ -28,7 +27,7 @@ impl Layout {
     }
 
     /// Create a Layout object from the specified metadata
-    pub fn from_metadata(schema: Rc<Schema>, offsets: HashMap<String, i32>, slotsize: i32) -> Self {
+    pub fn from_metadata(schema: Schema, offsets: HashMap<String, i32>, slotsize: i32) -> Self {
         Layout {
             schema,
             offsets,
@@ -49,8 +48,8 @@ impl Layout {
     }
 
     fn length_in_bytes(schema: &Schema, fldname: &str) -> i32 {
-        let fldtype = schema.type_(fldname);
-        if fldtype == INTEGER {
+        let fldtype = schema.ftype(fldname);
+        if fldtype == SqlTypes::INTEGER {
             4 // Integer.BYTES
         } else {
             // fldtype == VARCHAR
@@ -69,7 +68,7 @@ mod tests {
         sch.add_int_field("A");
         sch.add_string_field("B", 9);
         sch.add_int_field("C");
-        let layout = Layout::new(Rc::new(sch));
+        let layout = Layout::new(sch);
         assert_eq!(4, layout.offset("A"));
         assert_eq!(8, layout.offset("B"));
         assert_eq!(48, layout.offset("C"));

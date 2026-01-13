@@ -1,6 +1,6 @@
 use crate::file::BlockId;
 use crate::query::{Constant, Scan, UpdateScan};
-use crate::record::sql_types::INTEGER;
+use crate::record::SqlTypes;
 use crate::record::{Layout, RID, RecordPage};
 use crate::tx::Transaction;
 use std::cell::RefCell;
@@ -108,7 +108,7 @@ impl Scan for TableScan {
     }
 
     fn get_val(&mut self, fldname: &str) -> Constant {
-        if self.layout.schema().type_(fldname) == INTEGER {
+        if self.layout.schema().ftype(fldname) == SqlTypes::INTEGER {
             Constant::from_int(self.get_int(fldname))
         } else {
             Constant::from_string(self.get_string(fldname))
@@ -142,7 +142,7 @@ impl UpdateScan for TableScan {
     }
 
     fn set_val(&mut self, fldname: &str, val: &Constant) {
-        if self.layout.schema().type_(fldname) == INTEGER {
+        if self.layout.schema().ftype(fldname) == SqlTypes::INTEGER {
             if let Some(i) = val.as_int() {
                 self.set_int(fldname, i);
             }
@@ -217,7 +217,7 @@ mod tests {
         let mut sch = Schema::new();
         sch.add_int_field("A");
         sch.add_string_field("B", 9);
-        let layout = Layout::new(Rc::new(sch));
+        let layout = Layout::new(sch);
 
         // 新增记录
         let mut ts = TableScan::new(Rc::clone(&tx), "T", Rc::new(layout));
