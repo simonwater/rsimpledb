@@ -5,11 +5,12 @@ use crate::tx::Transaction;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::rc::Rc;
+use std::sync::Arc;
 
 /// The index manager
 #[derive(Clone)]
 pub struct IndexMgr {
-    layout: Rc<Layout>,
+    layout: Arc<Layout>,
     tbl_mgr: TableMgr,
     stat_mgr: StatMgr,
 }
@@ -31,7 +32,7 @@ impl IndexMgr {
         }
         let layout = tbl_mgr.get_layout("idxcat", tx);
         IndexMgr {
-            layout: Rc::new(layout),
+            layout: Arc::new(layout),
             tbl_mgr,
             stat_mgr,
         }
@@ -69,7 +70,7 @@ impl IndexMgr {
                 let tbl_schema = tbl_layout.schema().clone();
                 let tbl_si =
                     self.stat_mgr
-                        .get_stat_info(tblname, Rc::new(tbl_layout), Rc::clone(&tx));
+                        .get_stat_info(tblname, Arc::new(tbl_layout), Rc::clone(&tx));
                 let ii =
                     IndexInfo::new(idxname, fldname.clone(), tbl_schema, Rc::clone(&tx), tbl_si);
                 result.insert(fldname, ii);

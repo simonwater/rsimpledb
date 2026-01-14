@@ -4,6 +4,7 @@ use crate::tx::Transaction;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::rc::Rc;
+use std::sync::Arc;
 
 /// The metadata manager
 #[derive(Clone)]
@@ -66,7 +67,7 @@ impl MetadataMgr {
     pub fn get_stat_info(
         &self,
         tblname: &str,
-        layout: Rc<Layout>,
+        layout: Arc<Layout>,
         tx: Rc<RefCell<Transaction>>,
     ) -> StatInfo {
         self.stat_mgr.get_stat_info(tblname, layout, tx)
@@ -80,6 +81,7 @@ mod tests {
     use crate::query::UpdateScan;
     use crate::record::TableScan;
     use crate::util::TempFileGuard;
+    use std::sync::Arc;
 
     #[test]
     fn mdm_test() {
@@ -95,7 +97,7 @@ mod tests {
         sch.add_string_field("B", 9);
         mdm.create_table("MyTable", sch, Rc::clone(&tx));
         let layout = mdm.get_layout("MyTable", Rc::clone(&tx));
-        let layout = Rc::new(layout);
+        let layout = Arc::new(layout);
         let size = layout.slot_size();
         assert_eq!(48, size);
         let sch2 = layout.schema();
@@ -106,13 +108,13 @@ mod tests {
         assert_eq!(9, sch2.length("B"));
 
         // Part 2: Statistics Metadata
-        let mut ts = TableScan::new(Rc::clone(&tx), "MyTable", Rc::clone(&layout));
+        let mut ts = TableScan::new(Rc::clone(&tx), "MyTable", Arc::clone(&layout));
         for i in 1..=50 {
             ts.insert();
             ts.set_int("A", i);
             ts.set_string("B", &format!("rec{i}"));
         }
-        let si = mdm.get_stat_info("MyTable", Rc::clone(&layout), Rc::clone(&tx));
+        let si = mdm.get_stat_info("MyTable", Arc::clone(&layout), Rc::clone(&tx));
         assert_eq!(3, si.blocks_accessed());
         assert_eq!(50, si.records_output());
         assert_eq!(17, si.distinct_values("A"));

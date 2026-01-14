@@ -149,16 +149,17 @@ impl FileMgrState {
 
 #[cfg(test)]
 mod tests {
-    use super::{BlockId, FileMgr, Page};
+    use super::{BlockId, Page};
+    use crate::DataBase;
     use crate::util::TempFileGuard;
-    use std::path::PathBuf;
 
     #[test]
     fn file_mgr_test() {
         let db_dir = ".temp/fmdb";
         let _guard = TempFileGuard::new(db_dir);
         let blocksize = 400;
-        let mut fm = FileMgr::new(PathBuf::from(db_dir), blocksize);
+        let db: DataBase = DataBase::new_with_size(db_dir, blocksize, 10);
+        let mut fm = db.file_mgr();
 
         let filename = "testfile";
         let blk = fm.append(filename); // 在末尾追加

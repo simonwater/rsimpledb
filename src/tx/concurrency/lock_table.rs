@@ -1,5 +1,6 @@
+use crate::DbResult;
 use crate::file::BlockId;
-use crate::tx::concurrency::LockAbortException;
+use crate::tx::TxError;
 use std::collections::HashMap;
 use std::sync::{Arc, Condvar, Mutex};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
@@ -22,7 +23,7 @@ impl LockTable {
     }
 
     /// Grant an SLock on the specified block
-    pub fn s_lock(&self, blk: &BlockId) -> Result<(), LockAbortException> {
+    pub fn s_lock(&self, blk: &BlockId) -> DbResult<()> {
         let start_time = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .unwrap()
@@ -43,7 +44,7 @@ impl LockTable {
                 - start_time;
 
             if elapsed > MAX_TIME_MS {
-                return Err(LockAbortException);
+                return Err(TxError::LockAbort.into());
             }
 
             let _ = self
@@ -53,7 +54,7 @@ impl LockTable {
     }
 
     /// Grant an XLock on the specified block
-    pub fn x_lock(&self, blk: &BlockId) -> Result<(), LockAbortException> {
+    pub fn x_lock(&self, blk: &BlockId) -> DbResult<()> {
         let start_time = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .unwrap()
@@ -75,7 +76,7 @@ impl LockTable {
                 - start_time;
 
             if elapsed > MAX_TIME_MS {
-                return Err(LockAbortException);
+                return Err(TxError::LockAbort.into());
             }
 
             let _ = self

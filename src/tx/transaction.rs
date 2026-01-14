@@ -1,8 +1,10 @@
+use crate::DbResult;
 use crate::buffer::BufferMgr;
 use crate::file::{BlockId, FileMgr};
 use crate::log::LogMgr;
+use crate::tx::TxError;
 use crate::tx::buffer_list::BufferList;
-use crate::tx::concurrency::{ConcurrencyMgr, LockAbortException, LockTable};
+use crate::tx::concurrency::{ConcurrencyMgr, LockTable};
 use crate::tx::recovery::RecoveryMgr;
 use std::sync::atomic::{AtomicI32, Ordering};
 
@@ -70,27 +72,23 @@ impl Transaction {
     }
 
     /// Return the integer value stored at the specified offset
-    pub fn get_int(&mut self, blk: &BlockId, offset: usize) -> Result<i32, LockAbortException> {
+    pub fn get_int(&mut self, blk: &BlockId, offset: usize) -> DbResult<i32> {
         self.concur_mgr.s_lock(blk)?;
         let buff = self
             .mybuffers
             .get_buffer(blk)
-            .ok_or_else(|| LockAbortException)?;
+            .ok_or_else(|| TxError::LocalBufferNotFound(blk.clone()))?;
         let buffer = buff.lock().unwrap();
         Ok(buffer.contents().get_int(offset))
     }
 
     /// Return the string value stored at the specified offset
-    pub fn get_string(
-        &mut self,
-        blk: &BlockId,
-        offset: usize,
-    ) -> Result<String, LockAbortException> {
+    pub fn get_string(&mut self, blk: &BlockId, offset: usize) -> DbResult<String> {
         self.concur_mgr.s_lock(blk)?;
         let buff = self
             .mybuffers
             .get_buffer(blk)
-            .ok_or_else(|| LockAbortException)?;
+            .ok_or_else(|| TxError::LocalBufferNotFound(blk.clone()))?;
         let buffer = buff.lock().unwrap();
         Ok(buffer.contents().get_string(offset))
     }
@@ -102,12 +100,12 @@ impl Transaction {
         offset: usize,
         val: i32,
         ok_to_log: bool,
-    ) -> Result<(), LockAbortException> {
+    ) -> DbResult<()> {
         self.concur_mgr.x_lock(blk)?;
         let buff = self
             .mybuffers
             .get_buffer(blk)
-            .ok_or_else(|| LockAbortException)?;
+            .ok_or_else(|| TxError::LocalBufferNotFound(blk.clone()))?;
         let lsn = if ok_to_log {
             self.recovery_mgr.set_int(&buff, offset, val)
         } else {
@@ -126,12 +124,12 @@ impl Transaction {
         offset: usize,
         val: &str,
         ok_to_log: bool,
-    ) -> Result<(), LockAbortException> {
+    ) -> DbResult<()> {
         self.concur_mgr.x_lock(blk)?;
         let buff = self
             .mybuffers
             .get_buffer(blk)
-            .ok_or_else(|| LockAbortException)?;
+            .ok_or_else(|| TxError::LocalBufferNotFound(blk.clone()))?;
         let lsn = if ok_to_log {
             self.recovery_mgr.set_string(&buff, offset, val)
         } else {
@@ -144,14 +142,14 @@ impl Transaction {
     }
 
     /// Return the number of blocks in the specified file
-    pub fn size(&mut self, filename: &str) -> Result<usize, LockAbortException> {
+    pub fn size(&mut self, filename: &str) -> DbResult<usize> {
         let dummyblk = BlockId::new(filename.to_string(), END_OF_FILE);
         self.concur_mgr.s_lock(&dummyblk)?;
         Ok(self.fm.length(filename))
     }
 
     /// Append a new block to the end of the specified file
-    pub fn append(&mut self, filename: &str) -> Result<BlockId, LockAbortException> {
+    pub fn append(&mut self, filename: &str) -> DbResult<BlockId> {
         let dummyblk = BlockId::new(filename.to_string(), END_OF_FILE);
         self.concur_mgr.x_lock(&dummyblk)?;
         Ok(self.fm.append(filename))

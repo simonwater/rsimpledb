@@ -1,5 +1,6 @@
 pub mod buffer;
 pub mod db;
+pub mod error;
 pub mod file;
 pub mod log;
 pub mod metadata;
@@ -12,3 +13,4 @@ pub mod tx;
 pub mod util;
 
 pub use db::DataBase;
+pub use error::{DbError, DbResult};

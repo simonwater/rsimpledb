@@ -4,6 +4,7 @@ use crate::tx::Transaction;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::rc::Rc;
+use std::sync::Arc;
 
 /// The max characters a tablename or fieldname can have
 pub const MAX_NAME: i32 = 16;
@@ -11,8 +12,8 @@ pub const MAX_NAME: i32 = 16;
 /// The table manager
 #[derive(Clone)]
 pub struct TableMgr {
-    tcat_layout: Rc<Layout>,
-    fcat_layout: Rc<Layout>,
+    tcat_layout: Arc<Layout>,
+    fcat_layout: Arc<Layout>,
 }
 
 impl TableMgr {
@@ -32,8 +33,8 @@ impl TableMgr {
         let fcat_layout = Layout::new(fcat_schema.clone());
 
         let tm = TableMgr {
-            tcat_layout: Rc::new(tcat_layout),
-            fcat_layout: Rc::new(fcat_layout),
+            tcat_layout: Arc::new(tcat_layout),
+            fcat_layout: Arc::new(fcat_layout),
         };
 
         if is_new {
@@ -47,7 +48,7 @@ impl TableMgr {
     pub fn create_table(&self, tblname: &str, sch: Schema, tx: Rc<RefCell<Transaction>>) {
         let layout = Layout::new(sch);
         // insert one record into tblcat
-        let mut tcat = TableScan::new(Rc::clone(&tx), "tblcat", Rc::clone(&self.tcat_layout));
+        let mut tcat = TableScan::new(Rc::clone(&tx), "tblcat", Arc::clone(&self.tcat_layout));
         tcat.insert();
         tcat.set_string("tblname", tblname);
         tcat.set_int("slotsize", layout.slot_size());

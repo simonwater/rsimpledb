@@ -31,7 +31,7 @@ impl StatMgr {
     pub fn get_stat_info(
         &self,
         tblname: &str,
-        layout: Rc<Layout>,
+        layout: Arc<Layout>,
         tx: Rc<RefCell<Transaction>>,
     ) -> StatInfo {
         {
@@ -68,11 +68,11 @@ impl StatMgr {
             *num_calls = 0;
         }
         let tcat_layout = self.tbl_mgr.get_layout("tblcat", Rc::clone(&tx));
-        let mut tcat = TableScan::new(Rc::clone(&tx), "tblcat", Rc::new(tcat_layout));
+        let mut tcat = TableScan::new(Rc::clone(&tx), "tblcat", Arc::new(tcat_layout));
         while tcat.next() {
             let tblname = tcat.get_string("tblname");
             let layout = self.tbl_mgr.get_layout(&tblname, Rc::clone(&tx));
-            let si = self.calc_table_stats(&tblname, Rc::new(layout), Rc::clone(&tx));
+            let si = self.calc_table_stats(&tblname, Arc::new(layout), Rc::clone(&tx));
             let mut table_stats = self.table_stats.lock().unwrap();
             table_stats.insert(tblname, si);
         }
@@ -82,7 +82,7 @@ impl StatMgr {
     fn calc_table_stats(
         &self,
         tblname: &str,
-        layout: Rc<Layout>,
+        layout: Arc<Layout>,
         tx: Rc<RefCell<Transaction>>,
     ) -> StatInfo {
         let mut num_recs = 0;

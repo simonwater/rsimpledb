@@ -4,6 +4,7 @@ use crate::record::SqlTypes;
 use std::collections::HashMap;
 
 /// Description of the structure of a record
+#[derive(Clone)]
 pub struct Layout {
     schema: Schema,
     offsets: HashMap<String, i32>,

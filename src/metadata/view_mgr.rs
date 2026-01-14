@@ -4,6 +4,7 @@ use crate::record::{Schema, TableScan};
 use crate::tx::Transaction;
 use std::cell::RefCell;
 use std::rc::Rc;
+use std::sync::Arc;
 
 /// The max chars in a view definition
 const MAX_VIEWDEF: i32 = 100;
@@ -27,7 +28,7 @@ impl ViewMgr {
 
     pub fn create_view(&self, vname: &str, vdef: &str, tx: Rc<RefCell<Transaction>>) {
         let layout = self.tbl_mgr.get_layout("viewcat", Rc::clone(&tx));
-        let mut ts = TableScan::new(tx, "viewcat", Rc::new(layout));
+        let mut ts = TableScan::new(tx, "viewcat", Arc::new(layout));
         ts.insert();
         ts.set_string("viewname", vname);
         ts.set_string("viewdef", vdef);
@@ -36,7 +37,7 @@ impl ViewMgr {
 
     pub fn get_view_def(&self, vname: &str, tx: Rc<RefCell<Transaction>>) -> Option<String> {
         let layout = self.tbl_mgr.get_layout("viewcat", Rc::clone(&tx));
-        let mut ts = TableScan::new(tx, "viewcat", Rc::new(layout));
+        let mut ts = TableScan::new(tx, "viewcat", Arc::new(layout));
         let mut result = None;
         while ts.next() {
             if ts.get_string("viewname") == vname {

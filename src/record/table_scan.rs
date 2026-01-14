@@ -5,17 +5,18 @@ use crate::record::{Layout, RID, RecordPage};
 use crate::tx::Transaction;
 use std::cell::RefCell;
 use std::rc::Rc;
+use std::sync::Arc;
 
 pub struct TableScan {
     tx: Rc<RefCell<Transaction>>,
-    layout: Rc<Layout>,
+    layout: Arc<Layout>,
     rp: Option<RecordPage>,
     filename: String,
     currentslot: i32,
 }
 
 impl TableScan {
-    pub fn new(tx: Rc<RefCell<Transaction>>, tblname: &str, layout: Rc<Layout>) -> Self {
+    pub fn new(tx: Rc<RefCell<Transaction>>, tblname: &str, layout: Arc<Layout>) -> Self {
         let filename = format!("{}.tbl", tblname);
         let size = tx.borrow_mut().size(&filename).unwrap();
         let mut scan = TableScan {
@@ -39,14 +40,14 @@ impl TableScan {
         self.rp = Some(RecordPage::new(
             Rc::clone(&self.tx),
             blk,
-            Rc::clone(&self.layout),
+            Arc::clone(&self.layout),
         ));
     }
 
     fn move_to_new_block(&mut self) {
         self.close();
         let blk = self.tx.borrow_mut().append(&self.filename).unwrap();
-        let mut rp = RecordPage::new(Rc::clone(&self.tx), blk, Rc::clone(&self.layout));
+        let mut rp = RecordPage::new(Rc::clone(&self.tx), blk, Arc::clone(&self.layout));
         rp.format().unwrap();
         self.rp = Some(rp)
     }
@@ -195,7 +196,7 @@ impl UpdateScan for TableScan {
         self.rp = Some(RecordPage::new(
             Rc::clone(&self.tx),
             blk,
-            Rc::clone(&self.layout),
+            Arc::clone(&self.layout),
         ));
         self.currentslot = rid.slot();
     }
@@ -220,7 +221,7 @@ mod tests {
         let layout = Layout::new(sch);
 
         // 新增记录
-        let mut ts = TableScan::new(Rc::clone(&tx), "T", Rc::new(layout));
+        let mut ts = TableScan::new(Rc::clone(&tx), "T", Arc::new(layout));
         for i in 1..=100 {
             ts.insert();
             ts.set_int("A", i);

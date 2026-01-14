@@ -74,6 +74,7 @@ mod tests {
     use crate::util::TempFileGuard;
     use std::cell::RefCell;
     use std::rc::Rc;
+    use std::sync::Arc;
 
     #[test]
     fn product_test() {
@@ -83,14 +84,14 @@ mod tests {
         let mut sch1 = Schema::new();
         sch1.add_int_field("A");
         sch1.add_string_field("B", 9);
-        let layout1 = Rc::new(Layout::new(sch1));
+        let layout1 = Arc::new(Layout::new(sch1));
         let mut sch2 = Schema::new();
         sch2.add_int_field("C");
         sch2.add_string_field("D", 9);
-        let layout2 = Rc::new(Layout::new(sch2));
+        let layout2 = Arc::new(Layout::new(sch2));
 
         let tx1 = Rc::new(RefCell::new(db.new_tx()));
-        let mut ts1 = TableScan::new(Rc::clone(&tx1), "T1", Rc::clone(&layout1));
+        let mut ts1 = TableScan::new(Rc::clone(&tx1), "T1", Arc::clone(&layout1));
         for i in 1..=10 {
             ts1.insert();
             ts1.set_int("A", i);
@@ -98,7 +99,7 @@ mod tests {
         }
         ts1.close();
 
-        let mut ts2 = TableScan::new(Rc::clone(&tx1), "T2", Rc::clone(&layout2));
+        let mut ts2 = TableScan::new(Rc::clone(&tx1), "T2", Arc::clone(&layout2));
         for i in 1..=5 {
             ts2.insert();
             ts2.set_int("C", i * 2);
@@ -108,8 +109,8 @@ mod tests {
         tx1.borrow_mut().commit();
 
         let tx2 = Rc::new(RefCell::new(db.new_tx()));
-        let ts1 = TableScan::new(Rc::clone(&tx2), "T1", Rc::clone(&layout1));
-        let ts2 = TableScan::new(Rc::clone(&tx2), "T2", Rc::clone(&layout2));
+        let ts1 = TableScan::new(Rc::clone(&tx2), "T1", Arc::clone(&layout1));
+        let ts2 = TableScan::new(Rc::clone(&tx2), "T2", Arc::clone(&layout2));
         let mut ps = ProductScan::new(Box::new(ts1), Box::new(ts2));
         let mut i = 0;
         while ps.next() {

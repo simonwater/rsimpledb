@@ -1,5 +1,6 @@
+use crate::DbResult;
 use crate::file::BlockId;
-use crate::tx::concurrency::{LockAbortException, LockTable};
+use crate::tx::concurrency::LockTable;
 use std::collections::HashMap;
 
 /// The concurrency manager for the transaction
@@ -17,7 +18,7 @@ impl ConcurrencyMgr {
     }
 
     /// Obtain an SLock on the block, if necessary
-    pub fn s_lock(&mut self, blk: &BlockId) -> Result<(), LockAbortException> {
+    pub fn s_lock(&mut self, blk: &BlockId) -> DbResult<()> {
         if !self.locks.contains_key(blk) {
             self.locktbl.s_lock(blk)?;
             self.locks.insert(blk.clone(), "S".to_string());
@@ -26,7 +27,7 @@ impl ConcurrencyMgr {
     }
 
     /// Obtain an XLock on the block, if necessary
-    pub fn x_lock(&mut self, blk: &BlockId) -> Result<(), LockAbortException> {
+    pub fn x_lock(&mut self, blk: &BlockId) -> DbResult<()> {
         if !self.has_x_lock(blk) {
             self.s_lock(blk)?; // 这样实现方式能明确区分“只有自己持有 S”与“有别人也持有 S”；
             self.locktbl.x_lock(blk)?;
