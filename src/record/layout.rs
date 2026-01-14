@@ -2,18 +2,19 @@ use crate::file::Page;
 use crate::record::Schema;
 use crate::record::SqlTypes;
 use std::collections::HashMap;
+use std::sync::Arc;
 
 /// Description of the structure of a record
 #[derive(Clone)]
 pub struct Layout {
-    schema: Schema,
+    schema: Arc<Schema>,
     offsets: HashMap<String, i32>,
     slotsize: i32,
 }
 
 impl Layout {
     /// Create a Layout object from a schema
-    pub fn new(schema: Schema) -> Self {
+    pub fn new(schema: Arc<Schema>) -> Self {
         let mut offsets = HashMap::new();
         let mut pos = 4i32; // leave space for the empty/inuse flag (Integer.BYTES)
         for fldname in schema.fields() {
@@ -28,7 +29,11 @@ impl Layout {
     }
 
     /// Create a Layout object from the specified metadata
-    pub fn from_metadata(schema: Schema, offsets: HashMap<String, i32>, slotsize: i32) -> Self {
+    pub fn from_metadata(
+        schema: Arc<Schema>,
+        offsets: HashMap<String, i32>,
+        slotsize: i32,
+    ) -> Self {
         Layout {
             schema,
             offsets,
@@ -36,8 +41,8 @@ impl Layout {
         }
     }
 
-    pub fn schema(&self) -> &Schema {
-        &self.schema
+    pub fn schema(&self) -> Arc<Schema> {
+        self.schema.clone()
     }
 
     pub fn offset(&self, fldname: &str) -> i32 {
@@ -69,7 +74,7 @@ mod tests {
         sch.add_int_field("A");
         sch.add_string_field("B", 9);
         sch.add_int_field("C");
-        let layout = Layout::new(sch);
+        let layout = Layout::new(Arc::new(sch));
         assert_eq!(4, layout.offset("A"));
         assert_eq!(8, layout.offset("B"));
         assert_eq!(48, layout.offset("C"));

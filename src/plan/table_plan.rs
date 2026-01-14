@@ -1,27 +1,30 @@
-use std::sync::Arc;
+use crate::metadata::MetadataMgr;
 use crate::plan::Plan;
 use crate::query::Scan;
-use crate::record::{Schema, Layout, TableScan};
-use crate::metadata::MetadataMgr;
+use crate::record::{Layout, Schema, TableScan};
 use crate::tx::Transaction;
+use std::cell::RefCell;
+use std::rc::Rc;
+use std::sync::Arc;
 
 /// The Plan class corresponding to a table
 pub struct TablePlan {
     tblname: String,
-    tx: Arc<std::sync::Mutex<Transaction>>,
-    layout: Layout,
+    tx: Rc<RefCell<Transaction>>,
+    layout: Arc<Layout>,
     si: crate::metadata::StatInfo,
 }
 
 impl TablePlan {
     /// Creates a leaf node in the query tree corresponding to the specified table
-    pub fn new(tx: Arc<std::sync::Mutex<Transaction>>, tblname: &str, md: &MetadataMgr) -> Self {
-        let layout = md.get_layout(tblname, Arc::clone(&tx));
-        let si = md.get_stat_info(tblname, &layout, Arc::clone(&tx));
+    pub fn new(tx: Rc<RefCell<Transaction>>, tblname: &str, md: &MetadataMgr) -> Self {
+        let layout = md.get_layout(tblname, Rc::clone(&tx));
+        let arc_layout = Arc::new(layout);
+        let si = md.get_stat_info(tblname, Arc::clone(&arc_layout), Rc::clone(&tx));
         TablePlan {
             tblname: tblname.to_string(),
             tx,
-            layout,
+            layout: arc_layout,
             si,
         }
     }
@@ -30,7 +33,11 @@ impl TablePlan {
 impl Plan for TablePlan {
     /// Creates a table scan for this query
     fn open(&self) -> Box<dyn Scan> {
-        Box::new(TableScan::new(Arc::clone(&self.tx), &self.tblname, self.layout.clone()))
+        Box::new(TableScan::new(
+            Rc::clone(&self.tx),
+            &self.tblname,
+            self.layout.clone(),
+        ))
     }
 
     /// Estimates the number of block accesses for the table
@@ -49,8 +56,7 @@ impl Plan for TablePlan {
     }
 
     /// Determines the schema of the table
-    fn schema(&self) -> Schema {
-        self.layout.schema().clone()
+    fn schema(&self) -> Arc<Schema> {
+        self.layout.schema()
     }
 }
-

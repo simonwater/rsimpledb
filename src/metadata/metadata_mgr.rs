@@ -30,7 +30,7 @@ impl MetadataMgr {
         }
     }
 
-    pub fn create_table(&self, tblname: &str, sch: Schema, tx: Rc<RefCell<Transaction>>) {
+    pub fn create_table(&self, tblname: &str, sch: Arc<Schema>, tx: Rc<RefCell<Transaction>>) {
         self.tbl_mgr.create_table(tblname, sch, tx);
     }
 
@@ -95,7 +95,7 @@ mod tests {
         let mut sch = Schema::new();
         sch.add_int_field("A");
         sch.add_string_field("B", 9);
-        mdm.create_table("MyTable", sch, Rc::clone(&tx));
+        mdm.create_table("MyTable", Arc::new(sch), Rc::clone(&tx));
         let layout = mdm.get_layout("MyTable", Rc::clone(&tx));
         let layout = Arc::new(layout);
         let size = layout.slot_size();

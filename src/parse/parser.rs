@@ -4,6 +4,7 @@ use crate::parse::{
 };
 use crate::query::{Constant, Expression, Predicate, Term};
 use crate::record::Schema;
+use std::sync::Arc;
 
 pub struct Parser {
     lex: Lexer,
@@ -154,7 +155,7 @@ impl Parser {
         self.lex.eat_delim('(');
         let sch = self.field_defs();
         self.lex.eat_delim(')');
-        CreateTableData::new(tblname, sch)
+        CreateTableData::new(tblname, Arc::new(sch))
     }
 
     fn field_defs(&mut self) -> Schema {

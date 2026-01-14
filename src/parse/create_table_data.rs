@@ -1,12 +1,13 @@
 use crate::record::Schema;
+use std::sync::Arc;
 
 pub struct CreateTableData {
     tblname: String,
-    sch: Schema,
+    sch: Arc<Schema>,
 }
 
 impl CreateTableData {
-    pub fn new(tblname: String, sch: Schema) -> Self {
+    pub fn new(tblname: String, sch: Arc<Schema>) -> Self {
         CreateTableData { tblname, sch }
     }
 
@@ -14,8 +15,7 @@ impl CreateTableData {
         &self.tblname
     }
 
-    pub fn schema(&self) -> &Schema {
-        &self.sch
+    pub fn schema(&self) -> Arc<Schema> {
+        self.sch.clone()
     }
 }
-

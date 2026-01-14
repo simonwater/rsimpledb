@@ -146,7 +146,7 @@ mod tests {
         sch.add_int_field("A");
         sch.add_string_field("B", 9);
 
-        let layout = Layout::new(sch);
+        let layout = Layout::new(Arc::new(sch));
         assert_eq!(4, layout.offset("A"));
         assert_eq!(8, layout.offset("B"));
         assert_eq!(48, layout.slot_size());

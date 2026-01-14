@@ -3,6 +3,7 @@ use crate::record::{Layout, Schema, SqlTypes};
 use crate::tx::Transaction;
 use std::cell::RefCell;
 use std::rc::Rc;
+use std::sync::Arc;
 // use crate::index::Index; // To be implemented
 
 /// The information about an index
@@ -10,7 +11,7 @@ pub struct IndexInfo {
     idxname: String,
     fldname: String,
     tx: Rc<RefCell<Transaction>>,
-    tbl_schema: Schema,
+    tbl_schema: Arc<Schema>,
     idx_layout: Layout,
     si: StatInfo,
 }
@@ -20,7 +21,7 @@ impl IndexInfo {
     pub fn new(
         idxname: String,
         fldname: String,
-        tbl_schema: Schema,
+        tbl_schema: Arc<Schema>,
         tx: Rc<RefCell<Transaction>>,
         si: StatInfo,
     ) -> Self {
@@ -73,6 +74,6 @@ impl IndexInfo {
             let fldlen = tbl_schema.length(fldname);
             sch.add_string_field("dataval", fldlen);
         }
-        Layout::new(sch)
+        Layout::new(Arc::new(sch))
     }
 }

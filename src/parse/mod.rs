@@ -19,5 +19,5 @@ pub use error::ParseError;
 pub use insert_data::InsertData;
 pub use lexer::Lexer;
 pub use modify_data::ModifyData;
-pub use parser::Parser;
+pub use parser::{CreateCommand, Parser, UpdateCommand};
 pub use query_data::QueryData;

@@ -22,7 +22,8 @@ impl TableMgr {
         let mut tcat_schema = Schema::new();
         tcat_schema.add_string_field("tblname", MAX_NAME);
         tcat_schema.add_int_field("slotsize");
-        let tcat_layout = Layout::new(tcat_schema.clone());
+        let tcat_schema = Arc::new(tcat_schema);
+        let tcat_layout = Layout::new(Arc::clone(&tcat_schema));
 
         let mut fcat_schema = Schema::new();
         fcat_schema.add_string_field("tblname", MAX_NAME);
@@ -30,7 +31,8 @@ impl TableMgr {
         fcat_schema.add_int_field("type");
         fcat_schema.add_int_field("length");
         fcat_schema.add_int_field("offset");
-        let fcat_layout = Layout::new(fcat_schema.clone());
+        let fcat_schema = Arc::new(fcat_schema);
+        let fcat_layout = Layout::new(Arc::clone(&fcat_schema));
 
         let tm = TableMgr {
             tcat_layout: Arc::new(tcat_layout),
@@ -45,7 +47,7 @@ impl TableMgr {
     }
 
     /// Create a new table having the specified name and schema
-    pub fn create_table(&self, tblname: &str, sch: Schema, tx: Rc<RefCell<Transaction>>) {
+    pub fn create_table(&self, tblname: &str, sch: Arc<Schema>, tx: Rc<RefCell<Transaction>>) {
         let layout = Layout::new(sch);
         // insert one record into tblcat
         let mut tcat = TableScan::new(Rc::clone(&tx), "tblcat", Arc::clone(&self.tcat_layout));
@@ -93,7 +95,7 @@ impl TableMgr {
             }
         }
         fcat.close();
-        Layout::from_metadata(sch, offsets, size)
+        Layout::from_metadata(Arc::new(sch), offsets, size)
     }
 }
 
@@ -114,7 +116,7 @@ mod tests {
         let mut sch = Schema::new();
         sch.add_int_field("A");
         sch.add_string_field("B", 9);
-        tm.create_table("MyTable", sch, Rc::clone(&tx));
+        tm.create_table("MyTable", Arc::new(sch), Rc::clone(&tx));
 
         let layout = tm.get_layout("MyTable", Rc::clone(&tx));
         let size = layout.slot_size();

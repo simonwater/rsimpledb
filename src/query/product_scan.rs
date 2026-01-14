@@ -84,11 +84,11 @@ mod tests {
         let mut sch1 = Schema::new();
         sch1.add_int_field("A");
         sch1.add_string_field("B", 9);
-        let layout1 = Arc::new(Layout::new(sch1));
+        let layout1 = Arc::new(Layout::new(Arc::new(sch1)));
         let mut sch2 = Schema::new();
         sch2.add_int_field("C");
         sch2.add_string_field("D", 9);
-        let layout2 = Arc::new(Layout::new(sch2));
+        let layout2 = Arc::new(Layout::new(Arc::new(sch2)));
 
         let tx1 = Rc::new(RefCell::new(db.new_tx()));
         let mut ts1 = TableScan::new(Rc::clone(&tx1), "T1", Arc::clone(&layout1));

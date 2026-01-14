@@ -1,5 +1,7 @@
 use crate::plan::Plan;
-use crate::query::{Scan, SelectScan, Predicate};
+use crate::query::{Predicate, Scan, SelectScan};
+use crate::record::Schema;
+use std::sync::Arc;
 
 /// The Plan class corresponding to the select relational algebra operator
 pub struct SelectPlan {
@@ -46,8 +48,7 @@ impl Plan for SelectPlan {
     }
 
     /// Returns the schema of the selection
-    fn schema(&self) -> crate::record::Schema {
+    fn schema(&self) -> Arc<Schema> {
         self.p.schema()
     }
 }
-

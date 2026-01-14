@@ -28,7 +28,7 @@ impl IndexMgr {
             sch.add_string_field("indexname", MAX_NAME);
             sch.add_string_field("tablename", MAX_NAME);
             sch.add_string_field("fieldname", MAX_NAME);
-            tbl_mgr.create_table("idxcat", sch, Rc::clone(&tx));
+            tbl_mgr.create_table("idxcat", Arc::new(sch), Rc::clone(&tx));
         }
         let layout = tbl_mgr.get_layout("idxcat", tx);
         IndexMgr {
@@ -67,7 +67,7 @@ impl IndexMgr {
                 let idxname = ts.get_string("indexname");
                 let fldname = ts.get_string("fieldname");
                 let tbl_layout = self.tbl_mgr.get_layout(tblname, Rc::clone(&tx));
-                let tbl_schema = tbl_layout.schema().clone();
+                let tbl_schema = tbl_layout.schema();
                 let tbl_si =
                     self.stat_mgr
                         .get_stat_info(tblname, Arc::new(tbl_layout), Rc::clone(&tx));

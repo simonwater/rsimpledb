@@ -1,10 +1,12 @@
 use crate::plan::Plan;
-use crate::query::{Scan, ProjectScan};
+use crate::query::{ProjectScan, Scan};
+use crate::record::Schema;
+use std::sync::Arc;
 
 /// The Plan class corresponding to the project relational algebra operator
 pub struct ProjectPlan {
     p: Box<dyn Plan>,
-    schema: crate::record::Schema,
+    schema: Arc<Schema>,
 }
 
 impl ProjectPlan {
@@ -14,7 +16,10 @@ impl ProjectPlan {
         for fldname in &fieldlist {
             schema.add(fldname, &p.schema());
         }
-        ProjectPlan { p, schema }
+        ProjectPlan {
+            p,
+            schema: Arc::new(schema),
+        }
     }
 }
 
@@ -41,8 +46,7 @@ impl Plan for ProjectPlan {
     }
 
     /// Returns the schema of the projection
-    fn schema(&self) -> crate::record::Schema {
+    fn schema(&self) -> Arc<Schema> {
         self.schema.clone()
     }
 }
-

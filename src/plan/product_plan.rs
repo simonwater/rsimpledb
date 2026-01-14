@@ -1,12 +1,13 @@
 use crate::plan::Plan;
-use crate::query::{Scan, ProductScan};
+use crate::query::{ProductScan, Scan};
 use crate::record::Schema;
+use std::sync::Arc;
 
 /// The Plan class corresponding to the product relational algebra operator
 pub struct ProductPlan {
     p1: Box<dyn Plan>,
     p2: Box<dyn Plan>,
-    schema: Schema,
+    schema: Arc<Schema>,
 }
 
 impl ProductPlan {
@@ -15,7 +16,11 @@ impl ProductPlan {
         let mut schema = Schema::new();
         schema.add_all(&p1.schema());
         schema.add_all(&p2.schema());
-        ProductPlan { p1, p2, schema }
+        ProductPlan {
+            p1,
+            p2,
+            schema: Arc::new(schema),
+        }
     }
 }
 
@@ -49,8 +54,7 @@ impl Plan for ProductPlan {
     }
 
     /// Returns the schema of the product
-    fn schema(&self) -> Schema {
+    fn schema(&self) -> Arc<Schema> {
         self.schema.clone()
     }
 }
-

@@ -1,10 +1,14 @@
-use std::sync::Arc;
-use crate::plan::{Plan, UpdatePlanner};
 use crate::metadata::MetadataMgr;
-use crate::parse::{InsertData, DeleteData, ModifyData, CreateTableData, CreateViewData, CreateIndexData};
-use crate::plan::{TablePlan, SelectPlan};
-use crate::query::{UpdateScan, Scan};
+use crate::parse::{
+    CreateIndexData, CreateTableData, CreateViewData, DeleteData, InsertData, ModifyData,
+};
+use crate::plan::{Plan, UpdatePlanner};
+use crate::plan::{SelectPlan, TablePlan};
+use crate::query::{Scan, UpdateScan};
 use crate::tx::Transaction;
+use std::cell::RefCell;
+use std::rc::Rc;
+use std::sync::Arc;
 
 /// The basic planner for SQL update statements
 pub struct BasicUpdatePlanner {
@@ -18,8 +22,9 @@ impl BasicUpdatePlanner {
 }
 
 impl UpdatePlanner for BasicUpdatePlanner {
-    fn execute_delete(&self, data: &DeleteData, tx: Arc<std::sync::Mutex<Transaction>>) -> i32 {
-        let mut p: Box<dyn Plan> = Box::new(TablePlan::new(Arc::clone(&tx), data.table_name(), &self.mdm));
+    fn execute_delete(&self, data: &DeleteData, tx: Rc<RefCell<Transaction>>) -> i32 {
+        let mut p: Box<dyn Plan> =
+            Box::new(TablePlan::new(Rc::clone(&tx), data.table_name(), &self.mdm));
         if !data.pred().is_empty() {
             p = Box::new(SelectPlan::new(p, data.pred().clone()));
         }
@@ -35,8 +40,9 @@ impl UpdatePlanner for BasicUpdatePlanner {
         count
     }
 
-    fn execute_modify(&self, data: &ModifyData, tx: Arc<std::sync::Mutex<Transaction>>) -> i32 {
-        let mut p: Box<dyn Plan> = Box::new(TablePlan::new(Arc::clone(&tx), data.table_name(), &self.mdm));
+    fn execute_modify(&self, data: &ModifyData, tx: Rc<RefCell<Transaction>>) -> i32 {
+        let mut p: Box<dyn Plan> =
+            Box::new(TablePlan::new(Rc::clone(&tx), data.table_name(), &self.mdm));
         if !data.pred().is_empty() {
             p = Box::new(SelectPlan::new(p, data.pred().clone()));
         }
@@ -52,8 +58,9 @@ impl UpdatePlanner for BasicUpdatePlanner {
         count
     }
 
-    fn execute_insert(&self, data: &InsertData, tx: Arc<std::sync::Mutex<Transaction>>) -> i32 {
-        let p: Box<dyn Plan> = Box::new(TablePlan::new(Arc::clone(&tx), data.table_name(), &self.mdm));
+    fn execute_insert(&self, data: &InsertData, tx: Rc<RefCell<Transaction>>) -> i32 {
+        let p: Box<dyn Plan> =
+            Box::new(TablePlan::new(Rc::clone(&tx), data.table_name(), &self.mdm));
         let mut us = p.open();
         // Note: In a full implementation, we'd need to cast to UpdateScan
         // us.insert();
@@ -64,20 +71,20 @@ impl UpdatePlanner for BasicUpdatePlanner {
         1
     }
 
-    fn execute_create_table(&self, data: &CreateTableData, tx: Arc<std::sync::Mutex<Transaction>>) -> i32 {
+    fn execute_create_table(&self, data: &CreateTableData, tx: Rc<RefCell<Transaction>>) -> i32 {
         self.mdm.create_table(data.table_name(), data.schema(), tx);
         0
     }
 
-    fn execute_create_view(&self, data: &CreateViewData, tx: Arc<std::sync::Mutex<Transaction>>) -> i32 {
+    fn execute_create_view(&self, data: &CreateViewData, tx: Rc<RefCell<Transaction>>) -> i32 {
         let viewdef = data.view_def();
         self.mdm.create_view(data.view_name(), &viewdef, tx);
         0
     }
 
-    fn execute_create_index(&self, data: &CreateIndexData, tx: Arc<std::sync::Mutex<Transaction>>) -> i32 {
-        self.mdm.create_index(data.index_name(), data.table_name(), data.field_name(), tx);
+    fn execute_create_index(&self, data: &CreateIndexData, tx: Rc<RefCell<Transaction>>) -> i32 {
+        self.mdm
+            .create_index(data.index_name(), data.table_name(), data.field_name(), tx);
         0
     }
 }
-

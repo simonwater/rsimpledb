@@ -218,7 +218,7 @@ mod tests {
         let mut sch = Schema::new();
         sch.add_int_field("A");
         sch.add_string_field("B", 9);
-        let layout = Layout::new(sch);
+        let layout = Layout::new(Arc::new(sch));
 
         // 新增记录
         let mut ts = TableScan::new(Rc::clone(&tx), "T", Arc::new(layout));
