@@ -10,6 +10,9 @@ pub mod select_plan;
 pub mod table_plan;
 pub mod update_planner;
 
+#[cfg(test)]
+pub mod plan_test;
+
 pub use basic_query_planner::BasicQueryPlanner;
 pub use basic_update_planner::BasicUpdatePlanner;
 pub use error::PlanError;

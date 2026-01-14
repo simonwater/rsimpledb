@@ -57,11 +57,17 @@ impl Schema {
     }
 
     pub fn ftype(&self, fldname: &str) -> i32 {
-        self.info.get(fldname).map(|f| f.type_).unwrap_or(0)
+        self.info
+            .get(fldname)
+            .map(|f| f.type_)
+            .expect(&format!("Field {fldname} not found"))
     }
 
     pub fn length(&self, fldname: &str) -> i32 {
-        self.info.get(fldname).map(|f| f.length).unwrap_or(0)
+        self.info
+            .get(fldname)
+            .map(|f| f.length)
+            .expect(&format!("Field {fldname} not found"))
     }
 }
 

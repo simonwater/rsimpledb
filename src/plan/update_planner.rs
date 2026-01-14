@@ -6,7 +6,7 @@ use std::cell::RefCell;
 use std::rc::Rc;
 
 /// The interface implemented by the planners for SQL insert, delete, and modify statements
-pub trait UpdatePlanner {
+pub trait UpdatePlanner: Sync + Send {
     /// Executes the specified insert statement, and returns the number of affected records
     fn execute_insert(&self, data: &InsertData, tx: Rc<RefCell<Transaction>>) -> i32;
 

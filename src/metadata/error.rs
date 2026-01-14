@@ -4,6 +4,6 @@ use thiserror::Error;
 pub enum MetadataError {
     #[error("Table `{0}` not found")]
     TableNotFound(String),
-    #[error("Field `{0}` type not match")]
-    TypeMismatch(String),
+    #[error("Field `{0}` not found")]
+    FieldNotFound(String),
 }

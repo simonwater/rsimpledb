@@ -9,11 +9,11 @@ use std::sync::Arc;
 
 /// The simplest, most naive query planner possible
 pub struct BasicQueryPlanner {
-    mdm: MetadataMgr,
+    mdm: Arc<MetadataMgr>,
 }
 
 impl BasicQueryPlanner {
-    pub fn new(mdm: MetadataMgr) -> Self {
+    pub fn new(mdm: Arc<MetadataMgr>) -> Self {
         BasicQueryPlanner { mdm }
     }
 }

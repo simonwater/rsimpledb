@@ -3,15 +3,17 @@ use crate::plan::{Plan, QueryPlanner, UpdatePlanner};
 use crate::tx::Transaction;
 use std::cell::RefCell;
 use std::rc::Rc;
+use std::sync::Arc;
 
 /// The object that executes SQL statements
+#[derive(Clone)]
 pub struct Planner {
-    qplanner: Box<dyn QueryPlanner>,
-    uplanner: Box<dyn UpdatePlanner>,
+    qplanner: Arc<dyn QueryPlanner>,
+    uplanner: Arc<dyn UpdatePlanner>,
 }
 
 impl Planner {
-    pub fn new(qplanner: Box<dyn QueryPlanner>, uplanner: Box<dyn UpdatePlanner>) -> Self {
+    pub fn new(qplanner: Arc<dyn QueryPlanner>, uplanner: Arc<dyn UpdatePlanner>) -> Self {
         Planner { qplanner, uplanner }
     }
 

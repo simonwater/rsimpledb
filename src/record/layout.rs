@@ -46,7 +46,10 @@ impl Layout {
     }
 
     pub fn offset(&self, fldname: &str) -> i32 {
-        self.offsets.get(fldname).copied().unwrap_or(0)
+        self.offsets
+            .get(fldname)
+            .copied()
+            .expect(&format!("Field {fldname} not found"))
     }
 
     pub fn slot_size(&self) -> i32 {

@@ -2,10 +2,12 @@ use crate::buffer::BufferMgr;
 use crate::file::FileMgr;
 use crate::log::LogMgr;
 use crate::metadata::MetadataMgr;
+use crate::plan::{BasicQueryPlanner, BasicUpdatePlanner, Planner, planner};
 use crate::tx::{LockTable, Transaction};
 use std::cell::RefCell;
 use std::path::PathBuf;
 use std::rc::Rc;
+use std::sync::Arc;
 
 pub const BLOCK_SIZE: usize = 1024;
 pub const BUFFER_SIZE: usize = 100;
@@ -16,8 +18,9 @@ pub struct DataBase {
     lm: LogMgr,
     bm: BufferMgr,
     fm: FileMgr,
-    mdm: MetadataMgr,
     lt: LockTable,
+    mdm: Arc<MetadataMgr>,
+    planner: Planner,
 }
 
 impl DataBase {
@@ -35,13 +38,16 @@ impl DataBase {
         let tx = Transaction::new(fm.clone(), lm.clone(), bm.clone(), lt.clone());
         let tx = Rc::new(RefCell::new(tx));
         let isnew = fm.is_new();
-        let mdm = MetadataMgr::new(isnew, Rc::clone(&tx));
+        let mdm = Arc::new(MetadataMgr::new(isnew, Rc::clone(&tx)));
         if isnew {
             println!("creating new database");
         } else {
             println!("recovering existing database");
             tx.borrow_mut().recover();
         }
+        let qp = Arc::new(BasicQueryPlanner::new(Arc::clone(&mdm)));
+        let up = Arc::new(BasicUpdatePlanner::new(Arc::clone(&mdm)));
+        let planner = Planner::new(qp, up);
         tx.borrow_mut().commit();
 
         DataBase {
@@ -50,6 +56,7 @@ impl DataBase {
             fm,
             lt,
             mdm,
+            planner,
         }
     }
 
@@ -67,6 +74,10 @@ impl DataBase {
 
     pub fn md_mgr(&self) -> &MetadataMgr {
         &self.mdm
+    }
+
+    pub fn planner(&self) -> &Planner {
+        &self.planner
     }
 
     pub fn new_tx(&self) -> Transaction {

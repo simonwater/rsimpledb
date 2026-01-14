@@ -23,27 +23,15 @@ impl Scan for ProjectScan {
     }
 
     fn get_int(&mut self, fldname: &str) -> i32 {
-        if self.has_field(fldname) {
-            self.s.get_int(fldname)
-        } else {
-            panic!("field {} not found", fldname);
-        }
+        self.s.get_int(fldname)
     }
 
     fn get_string(&mut self, fldname: &str) -> String {
-        if self.has_field(fldname) {
-            self.s.get_string(fldname)
-        } else {
-            panic!("field {} not found", fldname);
-        }
+        self.s.get_string(fldname)
     }
 
     fn get_val(&mut self, fldname: &str) -> Constant {
-        if self.has_field(fldname) {
-            self.s.get_val(fldname)
-        } else {
-            panic!("field {} not found", fldname);
-        }
+        self.s.get_val(fldname)
     }
 
     fn has_field(&self, fldname: &str) -> bool {

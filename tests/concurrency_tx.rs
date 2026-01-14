@@ -11,15 +11,14 @@ pub fn tx_multi_thread() {
     let headers = vec![];
     let runner = MultiThreadRunner::new(100, headers);
     runner.excute(move |_tid| {
-        let db = db.clone();
         let mut fm = db.file_mgr();
         let blk = fm.append("testfile");
-        tx_test(db, blk);
+        tx_test(&db, blk);
         vec![]
     });
 }
 
-fn tx_test(db: DataBase, blk: BlockId) {
+fn tx_test(db: &DataBase, blk: BlockId) {
     let mut tx1 = db.new_tx();
     tx1.pin(&blk).unwrap();
     tx1.set_int(&blk, 0, 123, true).unwrap();
