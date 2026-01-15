@@ -47,6 +47,10 @@ impl Scan for SelectScan {
     fn close(&mut self) {
         self.s.close();
     }
+
+    fn as_update_scan(&mut self) -> Option<&mut dyn UpdateScan> {
+        Some(self as &mut dyn UpdateScan)
+    }
 }
 
 // Note: SelectScan can only implement UpdateScan if the underlying scan is UpdateScan

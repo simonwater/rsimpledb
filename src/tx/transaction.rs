@@ -77,7 +77,7 @@ impl Transaction {
         let buff = self
             .mybuffers
             .get_buffer(blk)
-            .ok_or_else(|| TxError::LocalBufferNotFound(blk.clone()))?;
+            .ok_or_else(|| TxError::LocalBufferNotFound(self.txnum, blk.clone()))?;
         let buffer = buff.lock().unwrap();
         Ok(buffer.contents().get_int(offset))
     }
@@ -88,7 +88,7 @@ impl Transaction {
         let buff = self
             .mybuffers
             .get_buffer(blk)
-            .ok_or_else(|| TxError::LocalBufferNotFound(blk.clone()))?;
+            .ok_or_else(|| TxError::LocalBufferNotFound(self.txnum, blk.clone()))?;
         let buffer = buff.lock().unwrap();
         Ok(buffer.contents().get_string(offset))
     }
@@ -105,7 +105,7 @@ impl Transaction {
         let buff = self
             .mybuffers
             .get_buffer(blk)
-            .ok_or_else(|| TxError::LocalBufferNotFound(blk.clone()))?;
+            .ok_or_else(|| TxError::LocalBufferNotFound(self.txnum, blk.clone()))?;
         let lsn = if ok_to_log {
             self.recovery_mgr.set_int(&buff, offset, val)
         } else {
@@ -129,7 +129,7 @@ impl Transaction {
         let buff = self
             .mybuffers
             .get_buffer(blk)
-            .ok_or_else(|| TxError::LocalBufferNotFound(blk.clone()))?;
+            .ok_or_else(|| TxError::LocalBufferNotFound(self.txnum, blk.clone()))?;
         let lsn = if ok_to_log {
             self.recovery_mgr.set_string(&buff, offset, val)
         } else {

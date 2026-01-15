@@ -44,7 +44,7 @@ impl LockTable {
                 - start_time;
 
             if elapsed > MAX_TIME_MS {
-                return Err(TxError::LockAbort.into());
+                return Err(TxError::LockAbort(-1, "S").into());
             }
 
             let _ = self
@@ -76,7 +76,7 @@ impl LockTable {
                 - start_time;
 
             if elapsed > MAX_TIME_MS {
-                return Err(TxError::LockAbort.into());
+                return Err(TxError::LockAbort(-1, "X").into());
             }
 
             let _ = self
