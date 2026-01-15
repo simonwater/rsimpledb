@@ -7,7 +7,7 @@ use rsimpledb::util::TempFileGuard;
 pub fn tx_multi_thread() {
     let db_dir = ".temp/txdb2";
     let _guard = TempFileGuard::new(db_dir);
-    let db = DataBase::new_with_size(db_dir, 400, 500);
+    let db = DataBase::new(db_dir);
     let headers = vec![];
     let runner = MultiThreadRunner::new(100, headers);
     runner.excute(move |_tid| {
