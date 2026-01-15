@@ -14,7 +14,6 @@ pub struct FileMgr {
     is_new: bool,
 }
 
-// todo: 有些方法无需加锁，可以优化
 impl FileMgr {
     pub fn new(db_directory: PathBuf, blocksize: usize) -> Self {
         let is_new = !db_directory.exists();
@@ -118,7 +117,7 @@ impl FileMgrState {
             .expect("cannot access file");
         f.seek(SeekFrom::Start(offset as u64)).expect("cannot seek");
         f.write_all(p.contents())
-            .unwrap_or_else(|_| panic!("cannot write block {}", blk));
+            .unwrap_or_else(|e| panic!("cannot write block {}: {}", blk, e));
         f.flush().ok();
     }
 
@@ -130,7 +129,7 @@ impl FileMgrState {
         let f = self.get_file_mut(filename).expect("cannot access file");
         f.seek(SeekFrom::Start(offset as u64)).expect("cannot seek");
         f.write_all(&zeros)
-            .unwrap_or_else(|_| panic!("cannot append block {}", blk));
+            .unwrap_or_else(|e| panic!("cannot append block {}: {}", blk, e));
         f.flush().ok();
         blk
     }
@@ -142,7 +141,7 @@ impl FileMgrState {
         };
         match f.metadata() {
             Ok(meta) => (meta.len() as usize) / self.blocksize,
-            Err(_) => panic!("cannot access {}", filename),
+            Err(e) => panic!("cannot access {}：{}", filename, e),
         }
     }
 }

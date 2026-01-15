@@ -51,27 +51,24 @@ struct LogMgrState {
 
 impl LogMgrState {
     pub fn new(mut fm: FileMgr, logfile: String) -> Self {
-        let mut logpage = Page::new(fm.block_size());
-        let logsize = fm.length(&logfile);
-        let currentblk = if logsize == 0 {
-            // creates the first block and returns it
-            let blk = fm.append(&logfile);
-            logpage.set_int(0, fm.block_size() as i32); // set boundary
-            fm.write(&blk, &logpage);
-            blk
-        } else {
-            let blk = BlockId::new(logfile.clone(), (logsize - 1) as i32);
-            fm.read(&blk, &mut logpage);
-            blk
-        };
-        LogMgrState {
-            fm,
-            logfile,
-            logpage,
-            currentblk,
+        let mut lm = LogMgrState {
+            fm: fm.clone(),
+            logfile: logfile.clone(),
+            logpage: Page::new(fm.block_size()),
+            currentblk: BlockId::new(logfile.clone(), -1),
             latest_lsn: 0,
             last_saved_lsn: 0,
-        }
+        };
+        let logsize = fm.length(&logfile);
+        lm.currentblk = if logsize == 0 {
+            // creates the first block and returns it
+            lm.append_new_block()
+        } else {
+            let blk = BlockId::new(logfile.clone(), (logsize - 1) as i32);
+            fm.read(&blk, &mut lm.logpage);
+            blk
+        };
+        lm
     }
 
     /// Ensures that the log record corresponding to `lsn` has been written
