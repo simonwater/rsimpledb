@@ -18,28 +18,28 @@ impl ConcurrencyMgr {
     }
 
     /// Obtain an SLock on the block, if necessary
-    pub fn s_lock(&mut self, blk: &BlockId) -> DbResult<()> {
+    pub fn s_lock(&mut self, blk: &BlockId, txnum: i32) -> DbResult<()> {
         if !self.locks.contains_key(blk) {
-            self.locktbl.s_lock(blk)?;
+            self.locktbl.s_lock(blk, txnum)?;
             self.locks.insert(blk.clone(), "S".to_string());
         }
         Ok(())
     }
 
     /// Obtain an XLock on the block, if necessary
-    pub fn x_lock(&mut self, blk: &BlockId) -> DbResult<()> {
+    pub fn x_lock(&mut self, blk: &BlockId, txnum: i32) -> DbResult<()> {
         if !self.has_x_lock(blk) {
-            self.s_lock(blk)?; // 这样实现方式能明确区分“只有自己持有 S”与“有别人也持有 S”；
-            self.locktbl.x_lock(blk)?;
+            self.s_lock(blk, txnum)?; // 这样实现方式能明确区分“只有自己持有 S”与“有别人也持有 S”；
+            self.locktbl.x_lock(blk, txnum)?;
             self.locks.insert(blk.clone(), "X".to_string());
         }
         Ok(())
     }
 
     /// Release all locks
-    pub fn release(&mut self) {
+    pub fn release(&mut self, txnum: i32) {
         for blk in self.locks.keys() {
-            self.locktbl.unlock(blk);
+            self.locktbl.unlock(blk, txnum);
         }
         self.locks.clear();
     }

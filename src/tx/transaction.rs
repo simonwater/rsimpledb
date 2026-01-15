@@ -43,7 +43,7 @@ impl Transaction {
     pub fn commit(&mut self) {
         self.recovery_mgr.commit();
         //println!("transaction {} committed", self.txnum);
-        self.concur_mgr.release();
+        self.concur_mgr.release(self.txnum);
         self.mybuffers.unpin_all();
     }
 
@@ -51,7 +51,7 @@ impl Transaction {
     pub fn rollback(&mut self) {
         RecoveryMgr::rollback(self.lm.clone(), self.bm.clone(), self);
         //println!("transaction {} rolled back", self.txnum);
-        self.concur_mgr.release();
+        self.concur_mgr.release(self.txnum);
         self.mybuffers.unpin_all();
     }
 
@@ -73,7 +73,7 @@ impl Transaction {
 
     /// Return the integer value stored at the specified offset
     pub fn get_int(&mut self, blk: &BlockId, offset: usize) -> DbResult<i32> {
-        self.concur_mgr.s_lock(blk)?;
+        self.concur_mgr.s_lock(blk, self.txnum)?;
         let buff = self
             .mybuffers
             .get_buffer(blk)
@@ -84,7 +84,7 @@ impl Transaction {
 
     /// Return the string value stored at the specified offset
     pub fn get_string(&mut self, blk: &BlockId, offset: usize) -> DbResult<String> {
-        self.concur_mgr.s_lock(blk)?;
+        self.concur_mgr.s_lock(blk, self.txnum)?;
         let buff = self
             .mybuffers
             .get_buffer(blk)
@@ -101,7 +101,7 @@ impl Transaction {
         val: i32,
         ok_to_log: bool,
     ) -> DbResult<()> {
-        self.concur_mgr.x_lock(blk)?;
+        self.concur_mgr.x_lock(blk, self.txnum)?;
         let buff = self
             .mybuffers
             .get_buffer(blk)
@@ -125,7 +125,7 @@ impl Transaction {
         val: &str,
         ok_to_log: bool,
     ) -> DbResult<()> {
-        self.concur_mgr.x_lock(blk)?;
+        self.concur_mgr.x_lock(blk, self.txnum)?;
         let buff = self
             .mybuffers
             .get_buffer(blk)
@@ -144,14 +144,14 @@ impl Transaction {
     /// Return the number of blocks in the specified file
     pub fn size(&mut self, filename: &str) -> DbResult<usize> {
         let dummyblk = BlockId::new(filename.to_string(), END_OF_FILE);
-        self.concur_mgr.s_lock(&dummyblk)?;
+        self.concur_mgr.s_lock(&dummyblk, self.txnum)?;
         Ok(self.fm.length(filename))
     }
 
     /// Append a new block to the end of the specified file
     pub fn append(&mut self, filename: &str) -> DbResult<BlockId> {
         let dummyblk = BlockId::new(filename.to_string(), END_OF_FILE);
-        self.concur_mgr.x_lock(&dummyblk)?;
+        self.concur_mgr.x_lock(&dummyblk, self.txnum)?;
         Ok(self.fm.append(filename))
     }
 

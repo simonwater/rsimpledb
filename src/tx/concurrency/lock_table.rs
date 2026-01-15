@@ -23,7 +23,7 @@ impl LockTable {
     }
 
     /// Grant an SLock on the specified block
-    pub fn s_lock(&self, blk: &BlockId) -> DbResult<()> {
+    pub fn s_lock(&self, blk: &BlockId, txnum: i32) -> DbResult<()> {
         let start_time = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .unwrap()
@@ -44,7 +44,7 @@ impl LockTable {
                 - start_time;
 
             if elapsed > MAX_TIME_MS {
-                return Err(TxError::LockAbort(-1, "S").into());
+                return Err(TxError::LockAbort(txnum, "S").into());
             }
 
             let _ = self
@@ -54,7 +54,7 @@ impl LockTable {
     }
 
     /// Grant an XLock on the specified block
-    pub fn x_lock(&self, blk: &BlockId) -> DbResult<()> {
+    pub fn x_lock(&self, blk: &BlockId, txnum: i32) -> DbResult<()> {
         let start_time = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .unwrap()
@@ -76,7 +76,7 @@ impl LockTable {
                 - start_time;
 
             if elapsed > MAX_TIME_MS {
-                return Err(TxError::LockAbort(-1, "X").into());
+                return Err(TxError::LockAbort(txnum, "X").into());
             }
 
             let _ = self
@@ -86,7 +86,7 @@ impl LockTable {
     }
 
     /// Release a lock on the specified block
-    pub fn unlock(&self, blk: &BlockId) {
+    pub fn unlock(&self, blk: &BlockId, _txnum: i32) {
         let mut locks = self.locks.lock().unwrap();
         let val = self.get_lock_val(&locks, blk);
         if val > 1 {
