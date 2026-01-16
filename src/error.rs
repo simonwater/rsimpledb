@@ -1,4 +1,6 @@
 use crate::buffer::BufferError;
+use crate::file::FileError;
+use crate::log::LogError;
 use crate::metadata::MetadataError;
 use crate::parse::ParseError;
 use crate::plan::PlanError;
@@ -7,6 +9,12 @@ use thiserror::Error;
 
 #[derive(Error, Debug)]
 pub enum DbError {
+    #[error("File storage error: {0}")]
+    Storage(#[from] FileError),
+
+    #[error("Log fail: {0}")]
+    LogFailure(#[from] LogError),
+
     #[error("Buffer manager error: {0}")]
     Buffer(#[from] BufferError),
 

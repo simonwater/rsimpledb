@@ -1,5 +1,6 @@
 use std::fmt;
 
+use crate::DbResult;
 use crate::file::Page;
 use crate::tx::Transaction;
 
@@ -16,7 +17,9 @@ pub enum LogRecordType {
 pub trait LogRecord: fmt::Display + fmt::Debug {
     fn op(&self) -> LogRecordType;
     fn tx_number(&self) -> i32;
-    fn undo(&self, tx: &mut Transaction);
+    fn undo(&self, _tx: &mut Transaction) -> DbResult<()> {
+        Ok(())
+    }
 }
 
 pub fn create_log_record(bytes: &[u8]) -> Box<dyn LogRecord> {

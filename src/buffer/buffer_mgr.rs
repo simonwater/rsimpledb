@@ -25,8 +25,8 @@ impl BufferMgr {
     }
 
     /// Flushes the dirty buffers modified by the specified transaction
-    pub fn flush_all(&self, txnum: i32) {
-        self.state.lock().unwrap().flush_all(txnum);
+    pub fn flush_all(&self, txnum: i32) -> DbResult<()> {
+        self.state.lock().unwrap().flush_all(txnum)
     }
 
     /// Unpins the specified buffer. If pin count goes to zero, it becomes available.
@@ -69,13 +69,14 @@ impl BufferMgrState {
     }
 
     /// Flushes the dirty buffers modified by the specified transaction
-    pub fn flush_all(&mut self, txnum: i32) {
+    pub fn flush_all(&mut self, txnum: i32) -> DbResult<()> {
         for buff_arc in &self.bufferpool {
             let mut buff = buff_arc.lock().unwrap();
             if buff.modifying_tx() == txnum {
-                buff.flush();
+                buff.flush()?;
             }
         }
+        Ok(())
     }
 
     /// Unpins the specified buffer. If pin count goes to zero, it becomes available.
@@ -96,7 +97,7 @@ impl BufferMgrState {
             .as_millis();
 
         loop {
-            if let Some(buff) = self.try_to_pin(&blk) {
+            if let Some(buff) = self.try_to_pin(&blk)? {
                 return Ok(buff);
             }
 
@@ -117,7 +118,7 @@ impl BufferMgrState {
 
     /// Tries to pin a buffer to the specified block.
     /// Returns None if no buffer is available.
-    fn try_to_pin(&mut self, blk: &BlockId) -> Option<Arc<Mutex<Buffer>>> {
+    fn try_to_pin(&mut self, blk: &BlockId) -> DbResult<Option<Arc<Mutex<Buffer>>>> {
         if let Some(buff_arc) = self.find_existing_buffer(blk) {
             {
                 let mut buff = buff_arc.lock().unwrap();
@@ -126,20 +127,20 @@ impl BufferMgrState {
                 }
                 buff.pin();
             }
-            return Some(buff_arc);
+            return Ok(Some(buff_arc));
         }
 
         if let Some(buff_arc) = self.choose_unpinned_buffer() {
             {
                 let mut buff = buff_arc.lock().unwrap();
-                buff.assign_to_block(blk.clone());
+                buff.assign_to_block(blk.clone())?;
                 self.num_available -= 1;
                 buff.pin();
             }
-            return Some(buff_arc);
+            return Ok(Some(buff_arc));
         }
 
-        None
+        Ok(None)
     }
 
     /// Finds an existing buffer that's assigned to the given block
@@ -177,12 +178,12 @@ mod tests {
     fn buffer_mgr_concurrency_test() {
         let db_dir = ".temp/bmdb1";
         let _guard = TempFileGuard::new(db_dir);
-        let mut fm = FileMgr::new(PathBuf::from(db_dir), 400);
-        let lm = LogMgr::new(fm.clone(), "testlog.log".to_string());
+        let mut fm = FileMgr::new(PathBuf::from(db_dir), 400).unwrap();
+        let lm = LogMgr::new(fm.clone(), "testlog.log".to_string()).unwrap();
         let bm = BufferMgr::new(fm.clone(), lm.clone(), 10);
 
         let filename = "testfile";
-        let blk = fm.append(filename);
+        let blk = fm.append(filename).unwrap();
 
         let data = format!("hello buffer manager!");
         let buff_arc = bm.pin(&blk).unwrap();

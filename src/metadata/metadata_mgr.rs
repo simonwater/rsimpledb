@@ -104,7 +104,7 @@ mod tests {
         let db_dir = ".temp/mdmtest";
         let _guard = TempFileGuard::new(db_dir);
         let db: DataBase = DataBase::new(db_dir).unwrap();
-        let tx = Rc::new(RefCell::new(db.new_tx()));
+        let tx = Rc::new(RefCell::new(db.new_tx().unwrap()));
         let mdm = MetadataMgr::new(true, Rc::clone(&tx)).unwrap();
 
         // Part 1: Table Metadata

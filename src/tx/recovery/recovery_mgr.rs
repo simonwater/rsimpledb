@@ -1,3 +1,4 @@
+use crate::DbResult;
 use crate::buffer::{Buffer, BufferMgr};
 use crate::log::LogMgr;
 use crate::tx::Transaction;
@@ -17,21 +18,25 @@ pub struct RecoveryMgr {
 
 impl RecoveryMgr {
     /// Create a recovery manager for the specified transaction
-    pub fn new(txnum: i32, lm: LogMgr, bm: BufferMgr) -> Self {
-        StartRecord::write_to_log(lm.clone(), txnum);
-
-        RecoveryMgr { lm, bm, txnum }
+    pub fn new(txnum: i32, lm: LogMgr, bm: BufferMgr) -> DbResult<Self> {
+        StartRecord::write_to_log(lm.clone(), txnum)?;
+        Ok(RecoveryMgr { lm, bm, txnum })
     }
 
     /// Write a commit record to the log, and flushes it to disk
-    pub fn commit(&mut self) {
-        self.bm.flush_all(self.txnum);
-        let lsn = CommitRecord::write_to_log(self.lm.clone(), self.txnum);
-        self.lm.flush(lsn);
+    pub fn commit(&mut self) -> DbResult<()> {
+        self.bm.flush_all(self.txnum)?;
+        let lsn = CommitRecord::write_to_log(self.lm.clone(), self.txnum)?;
+        self.lm.flush(lsn)
     }
 
     /// Write a setint record to the log and return its lsn
-    pub fn set_int(&mut self, buff: &Arc<Mutex<Buffer>>, offset: usize, _newval: i32) -> i32 {
+    pub fn set_int(
+        &mut self,
+        buff: &Arc<Mutex<Buffer>>,
+        offset: usize,
+        _newval: i32,
+    ) -> DbResult<i32> {
         let buffer = buff.lock().unwrap();
         let oldval = buffer.contents().get_int(offset);
         let blk = buffer.block().unwrap().clone();
@@ -40,7 +45,12 @@ impl RecoveryMgr {
     }
 
     /// Write a setstring record to the log and return its lsn
-    pub fn set_string(&mut self, buff: &Arc<Mutex<Buffer>>, offset: usize, _newval: &str) -> i32 {
+    pub fn set_string(
+        &mut self,
+        buff: &Arc<Mutex<Buffer>>,
+        offset: usize,
+        _newval: &str,
+    ) -> DbResult<i32> {
         let buffer = buff.lock().unwrap();
         let oldval = buffer.contents().get_string(offset);
         let blk = buffer.block().unwrap().clone();
@@ -52,56 +62,58 @@ impl RecoveryMgr {
 /// static methods for RecoveryMgr
 impl RecoveryMgr {
     /// Write a rollback record to the log and flush it to disk
-    pub fn rollback(mut lm: LogMgr, bm: BufferMgr, tx: &mut Transaction) {
-        Self::do_rollback(lm.clone(), tx);
-        bm.flush_all(tx.txnum());
-        let lsn = RollbackRecord::write_to_log(lm.clone(), tx.txnum());
-        lm.flush(lsn);
+    pub fn rollback(mut lm: LogMgr, bm: BufferMgr, tx: &mut Transaction) -> DbResult<()> {
+        Self::do_rollback(lm.clone(), tx)?;
+        bm.flush_all(tx.txnum())?;
+        let lsn = RollbackRecord::write_to_log(lm.clone(), tx.txnum())?;
+        lm.flush(lsn)
     }
 
     /// Recover uncompleted transactions from the log
-    pub fn recover(mut lm: LogMgr, bm: BufferMgr, tx: &mut Transaction) {
-        Self::do_recover(lm.clone(), tx);
-        bm.flush_all(tx.txnum());
-        let lsn = CheckpointRecord::write_to_log(lm.clone());
-        lm.flush(lsn);
+    pub fn recover(mut lm: LogMgr, bm: BufferMgr, tx: &mut Transaction) -> DbResult<()> {
+        Self::do_recover(lm.clone(), tx)?;
+        bm.flush_all(tx.txnum())?;
+        let lsn = CheckpointRecord::write_to_log(lm.clone())?;
+        lm.flush(lsn)
     }
 
-    fn do_rollback(mut lm: LogMgr, tx: &mut Transaction) {
-        let mut iter = lm.iterator();
+    fn do_rollback(mut lm: LogMgr, tx: &mut Transaction) -> DbResult<()> {
+        let mut iter = lm.iterator()?;
 
         while iter.has_next() {
-            if let Some(bytes) = iter.next() {
-                let rec = create_log_record(&bytes);
+            if let Some(result) = iter.next() {
+                let rec = create_log_record(&result?);
                 if rec.tx_number() == tx.txnum() {
                     if rec.op() == LogRecordType::Start {
-                        return;
+                        return Ok(());
                     }
-                    rec.undo(tx);
+                    rec.undo(tx)?;
                 }
             }
         }
+        Ok(())
     }
 
-    fn do_recover(mut lm: LogMgr, tx: &mut Transaction) {
+    fn do_recover(mut lm: LogMgr, tx: &mut Transaction) -> DbResult<()> {
         use std::collections::HashSet;
         let mut finished_txs = HashSet::new();
 
-        let mut iter = lm.iterator();
+        let mut iter = lm.iterator()?;
 
         while iter.has_next() {
-            if let Some(bytes) = iter.next() {
-                let rec = create_log_record(&bytes);
+            if let Some(result) = iter.next() {
+                let rec = create_log_record(&result?);
                 if rec.op() == LogRecordType::Checkpoint {
-                    return;
+                    return Ok(());
                 }
                 if rec.op() == LogRecordType::Commit || rec.op() == LogRecordType::Rollback {
                     finished_txs.insert(rec.tx_number());
                 } else if !finished_txs.contains(&rec.tx_number()) {
-                    rec.undo(tx);
+                    rec.undo(tx)?;
                 }
             }
         }
+        Ok(())
     }
 }
 
@@ -131,10 +143,10 @@ mod tests {
 
     fn initialize(db: &mut DataBase) {
         let mut fm = db.file_mgr();
-        let blk1 = fm.append("testfile");
-        let blk2 = fm.append("testfile");
-        let mut tx1 = db.new_tx();
-        let mut tx2 = db.new_tx();
+        let blk1 = fm.append("testfile").unwrap();
+        let blk2 = fm.append("testfile").unwrap();
+        let mut tx1 = db.new_tx().unwrap();
+        let mut tx2 = db.new_tx().unwrap();
         tx1.pin(&blk1).unwrap();
         tx2.pin(&blk2).unwrap();
         let mut pos = 0;
@@ -145,8 +157,8 @@ mod tests {
         }
         tx1.set_string(&blk1, 30, "abc", true).unwrap();
         tx2.set_string(&blk2, 30, "def", true).unwrap();
-        tx1.commit();
-        tx2.commit();
+        tx1.commit().unwrap();
+        tx2.commit().unwrap();
 
         // begin checking
         check_initial_values(&mut fm);
@@ -155,8 +167,8 @@ mod tests {
     fn modify(db: &mut DataBase) {
         let blk1 = BlockId::new("testfile".to_string(), 0);
         let blk2 = BlockId::new("testfile".to_string(), 1);
-        let mut tx1 = db.new_tx();
-        let mut tx2 = db.new_tx();
+        let mut tx1 = db.new_tx().unwrap();
+        let mut tx2 = db.new_tx().unwrap();
         tx1.pin(&blk1).unwrap();
         tx2.pin(&blk2).unwrap();
         let mut pos = 0;
@@ -168,22 +180,22 @@ mod tests {
         tx1.set_string(&blk1, 30, "abc_modify", true).unwrap();
         tx2.set_string(&blk2, 30, "def_modify", true).unwrap();
         let bm = db.buffer_mgr();
-        bm.flush_all(tx1.txnum());
-        bm.flush_all(tx2.txnum());
+        bm.flush_all(tx1.txnum()).unwrap();
+        bm.flush_all(tx2.txnum()).unwrap();
 
         let mut fm = db.file_mgr();
         // begin checking
         check_modified_values(&mut fm);
 
-        tx1.rollback();
+        tx1.rollback().unwrap();
         check_partial_rollback_values(&mut fm);
     }
 
     fn read_pages(fm: &mut FileMgr, blk1: &BlockId, blk2: &BlockId) -> (Page, Page) {
         let mut p1 = Page::new(fm.block_size());
         let mut p2 = Page::new(fm.block_size());
-        fm.read(blk1, &mut p1);
-        fm.read(blk2, &mut p2);
+        fm.read(blk1, &mut p1).unwrap();
+        fm.read(blk2, &mut p2).unwrap();
         (p1, p2)
     }
 

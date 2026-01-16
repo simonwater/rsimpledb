@@ -3,8 +3,12 @@ use thiserror::Error;
 
 #[derive(Error, Debug)]
 pub enum FileError {
-    #[error("IO error: {0}")]
-    Io(#[from] io::Error),
+    #[error("{message}. IO error: {io_err}")]
+    Io {
+        #[source]
+        io_err: io::Error,
+        message: String,
+    },
     #[error("File {path} already exists")]
     FileAlreadyExists { path: String },
     #[error("File {path} not found")]

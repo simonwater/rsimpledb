@@ -12,22 +12,22 @@ pub fn tx_multi_thread() {
     let runner = MultiThreadRunner::new(100, headers);
     runner.excute(move |_tid| {
         let mut fm = db.file_mgr();
-        let blk = fm.append("testfile");
+        let blk = fm.append("testfile").unwrap();
         tx_test(&db, blk);
         vec![]
     });
 }
 
 fn tx_test(db: &DataBase, blk: BlockId) {
-    let mut tx1 = db.new_tx();
+    let mut tx1 = db.new_tx().unwrap();
     tx1.pin(&blk).unwrap();
     tx1.set_int(&blk, 0, 123, true).unwrap();
     tx1.set_string(&blk, 10, "hello", true).unwrap();
     assert_eq!(123, tx1.get_int(&blk, 0).unwrap());
     assert_eq!("hello".to_string(), tx1.get_string(&blk, 10).unwrap());
-    tx1.commit();
+    tx1.commit().unwrap();
 
-    let mut tx2 = db.new_tx();
+    let mut tx2 = db.new_tx().unwrap();
     tx2.pin(&blk).unwrap();
     let ival = tx2.get_int(&blk, 0).unwrap();
     let sval = tx2.get_string(&blk, 10).unwrap();
@@ -37,19 +37,19 @@ fn tx_test(db: &DataBase, blk: BlockId) {
     tx2.set_string(&blk, 10, "world", true).unwrap();
     assert_eq!(456, tx2.get_int(&blk, 0).unwrap());
     assert_eq!("world".to_string(), tx2.get_string(&blk, 10).unwrap());
-    tx2.commit();
+    tx2.commit().unwrap();
 
-    let mut tx3 = db.new_tx();
+    let mut tx3 = db.new_tx().unwrap();
     tx3.pin(&blk).unwrap();
     assert_eq!(456, tx3.get_int(&blk, 0).unwrap());
     assert_eq!("world".to_string(), tx3.get_string(&blk, 10).unwrap());
     tx3.set_int(&blk, 0, 999, true).unwrap();
     assert_eq!(999, tx3.get_int(&blk, 0).unwrap());
-    tx3.rollback();
+    tx3.rollback().unwrap();
 
-    let mut tx4 = db.new_tx();
+    let mut tx4 = db.new_tx().unwrap();
     tx4.pin(&blk).unwrap();
     assert_eq!(456, tx4.get_int(&blk, 0).unwrap());
     assert_eq!("world".to_string(), tx4.get_string(&blk, 10).unwrap());
-    tx4.commit();
+    tx4.commit().unwrap();
 }

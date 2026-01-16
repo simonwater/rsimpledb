@@ -31,12 +31,12 @@ impl DataBase {
 
     pub fn new_with_size(db_directory: &str, blocksize: usize, numbuffs: usize) -> DbResult<Self> {
         let db_dir = PathBuf::from(db_directory);
-        let fm = FileMgr::new(db_dir, blocksize);
-        let lm = LogMgr::new(fm.clone(), LOG_FILE.to_string());
+        let fm = FileMgr::new(db_dir, blocksize)?;
+        let lm = LogMgr::new(fm.clone(), LOG_FILE.to_string())?;
         let bm = BufferMgr::new(fm.clone(), lm.clone(), numbuffs);
         let lt = LockTable::new();
 
-        let tx = Transaction::new(fm.clone(), lm.clone(), bm.clone(), lt.clone());
+        let tx = Transaction::new(fm.clone(), lm.clone(), bm.clone(), lt.clone())?;
         let tx = Rc::new(RefCell::new(tx));
         let isnew = fm.is_new();
         let mdm = Arc::new(MetadataMgr::new(isnew, Rc::clone(&tx))?);
@@ -44,12 +44,12 @@ impl DataBase {
             println!("creating new database");
         } else {
             println!("recovering existing database");
-            tx.borrow_mut().recover();
+            tx.borrow_mut().recover()?;
         }
         let qp = Arc::new(BasicQueryPlanner::new(Arc::clone(&mdm)));
         let up = Arc::new(BasicUpdatePlanner::new(Arc::clone(&mdm)));
         let planner = Planner::new(qp, up);
-        tx.borrow_mut().commit();
+        tx.borrow_mut().commit()?;
 
         Ok(DataBase {
             lm,
@@ -81,7 +81,7 @@ impl DataBase {
         &self.planner
     }
 
-    pub fn new_tx(&self) -> Transaction {
+    pub fn new_tx(&self) -> DbResult<Transaction> {
         Transaction::new(
             self.fm.clone(),
             self.lm.clone(),

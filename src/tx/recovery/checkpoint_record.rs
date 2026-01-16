@@ -1,5 +1,5 @@
+use crate::DbResult;
 use crate::log::LogMgr;
-use crate::tx::Transaction;
 use crate::tx::recovery::{LogRecord, LogRecordType};
 use std::fmt;
 
@@ -10,7 +10,7 @@ impl CheckpointRecord {
         CheckpointRecord
     }
 
-    pub fn write_to_log(mut lm: LogMgr) -> i32 {
+    pub fn write_to_log(mut lm: LogMgr) -> DbResult<i32> {
         let rec = vec![0u8; 4]; // Integer.BYTES
         let mut p = crate::file::Page::from_bytes(rec);
         p.set_int(0, LogRecordType::Checkpoint as i32);
@@ -25,10 +25,6 @@ impl LogRecord for CheckpointRecord {
 
     fn tx_number(&self) -> i32 {
         -1 // Checkpoint records don't have a transaction number
-    }
-
-    fn undo(&self, _tx: &mut Transaction) {
-        // Does nothing
     }
 }
 

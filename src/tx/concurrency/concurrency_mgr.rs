@@ -72,19 +72,19 @@ mod tests {
         let _blk2 = fm.append("testfile");
 
         let mut handlers = vec![];
-        let tx_a = db.new_tx();
+        let tx_a = db.new_tx().unwrap();
         let t1 = thread::spawn(move || {
             run_a(tx_a);
         });
         handlers.push(t1);
 
-        let tx_b = db.new_tx();
+        let tx_b = db.new_tx().unwrap();
         let t2 = thread::spawn(move || {
             run_b(tx_b);
         });
         handlers.push(t2);
 
-        let tx_c = db.new_tx();
+        let tx_c = db.new_tx().unwrap();
         let t3 = thread::spawn(move || {
             run_c(tx_c);
         });
@@ -107,7 +107,7 @@ mod tests {
         println!("Tx A: request slock 2");
         tx_a.get_int(&blk2, 0).unwrap();
         println!("Tx A: receive slock 2");
-        tx_a.commit();
+        tx_a.commit().unwrap();
         println!("Tx A: commit");
     }
 
@@ -123,7 +123,7 @@ mod tests {
         println!("Tx B: request slock 1");
         tx_b.get_int(&blk1, 0).unwrap();
         println!("Tx B: receive slock 1");
-        tx_b.commit();
+        tx_b.commit().unwrap();
         println!("Tx B: commit");
     }
 
@@ -140,7 +140,7 @@ mod tests {
         println!("Tx C: request slock 2");
         tx_c.get_int(&blk2, 0).unwrap();
         println!("Tx C: receive slock 2");
-        tx_c.commit();
+        tx_c.commit().unwrap();
         println!("Tx C: commit");
     }
 }

@@ -1,3 +1,4 @@
+use crate::DbResult;
 use crate::file::{BlockId, Page};
 use crate::log::LogMgr;
 use crate::tx::Transaction;
@@ -33,7 +34,13 @@ impl SetIntRecord {
         }
     }
 
-    pub fn write_to_log(mut lm: LogMgr, txnum: i32, blk: &BlockId, offset: i32, val: i32) -> i32 {
+    pub fn write_to_log(
+        mut lm: LogMgr,
+        txnum: i32,
+        blk: &BlockId,
+        offset: i32,
+        val: i32,
+    ) -> DbResult<i32> {
         let tpos = 4;
         let fpos = tpos + 4;
         let bpos = fpos + Page::max_length(blk.file_name());
@@ -60,11 +67,11 @@ impl LogRecord for SetIntRecord {
         self.txnum
     }
 
-    fn undo(&self, tx: &mut Transaction) {
-        tx.pin(&self.blk).unwrap();
-        tx.set_int(&self.blk, self.offset as usize, self.val, false)
-            .unwrap(); // don't log the undo!
+    fn undo(&self, tx: &mut Transaction) -> DbResult<()> {
+        tx.pin(&self.blk)?;
+        tx.set_int(&self.blk, self.offset as usize, self.val, false)?; // don't log the undo!
         tx.unpin(&self.blk);
+        Ok(())
     }
 }
 

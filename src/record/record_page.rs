@@ -139,7 +139,7 @@ mod tests {
         let db_dir = ".temp/recorddb";
         let _guard = TempFileGuard::new(db_dir);
         let db: DataBase = DataBase::new(db_dir).unwrap();
-        let tx = Rc::new(RefCell::new(db.new_tx()));
+        let tx = Rc::new(RefCell::new(db.new_tx().unwrap()));
 
         // 创建模式和布局
         let mut sch = Schema::new();
@@ -196,6 +196,6 @@ mod tests {
 
         // 显式 drop RecordPage（会在 Drop 中 unpin）并提交事务
         drop(rp);
-        tx.borrow_mut().commit();
+        tx.borrow_mut().commit().unwrap();
     }
 }

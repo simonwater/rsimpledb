@@ -17,7 +17,7 @@ fn scan_test1() {
     sch.add_int_field("A");
     sch.add_string_field("B", 9);
     let layout = Arc::new(Layout::new(Arc::new(sch)));
-    let tx = Rc::new(RefCell::new(db.new_tx()));
+    let tx = Rc::new(RefCell::new(db.new_tx().unwrap()));
 
     let mut s1 = TableScan::new(Rc::clone(&tx), "T", Arc::clone(&layout)).unwrap();
     for i in 1..=50 {
@@ -48,7 +48,7 @@ fn scan_test2() {
     let db_dir = ".temp/scantest2";
     let _guard = TempFileGuard::new(db_dir);
     let db: DataBase = DataBase::new(db_dir).unwrap();
-    let tx = Rc::new(RefCell::new(db.new_tx()));
+    let tx = Rc::new(RefCell::new(db.new_tx().unwrap()));
     // create tables
     let mut sch1 = Schema::new();
     sch1.add_int_field("A");
@@ -97,5 +97,5 @@ fn scan_test2() {
         assert_eq!(format!("t2_rec{}", cnt * 2), ts5.get_string("D").unwrap());
     }
     ts5.close();
-    tx.borrow_mut().commit();
+    tx.borrow_mut().commit().unwrap();
 }

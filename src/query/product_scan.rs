@@ -92,7 +92,7 @@ mod tests {
         sch2.add_string_field("D", 9);
         let layout2 = Arc::new(Layout::new(Arc::new(sch2)));
 
-        let tx1 = Rc::new(RefCell::new(db.new_tx()));
+        let tx1 = Rc::new(RefCell::new(db.new_tx().unwrap()));
         let mut ts1 = TableScan::new(Rc::clone(&tx1), "T1", Arc::clone(&layout1)).unwrap();
         for i in 1..=10 {
             ts1.insert().unwrap();
@@ -108,9 +108,9 @@ mod tests {
             ts2.set_string("D", &format!("t2_rec{}", i * 2)).unwrap();
         }
         ts2.close();
-        tx1.borrow_mut().commit();
+        tx1.borrow_mut().commit().unwrap();
 
-        let tx2 = Rc::new(RefCell::new(db.new_tx()));
+        let tx2 = Rc::new(RefCell::new(db.new_tx().unwrap()));
         let ts1 = TableScan::new(Rc::clone(&tx2), "T1", Arc::clone(&layout1)).unwrap();
         let ts2 = TableScan::new(Rc::clone(&tx2), "T2", Arc::clone(&layout2)).unwrap();
         let mut ps = ProductScan::new(Box::new(ts1), Box::new(ts2)).unwrap();
@@ -127,6 +127,6 @@ mod tests {
             i += 1;
         }
         ps.close();
-        tx2.borrow_mut().commit();
+        tx2.borrow_mut().commit().unwrap();
     }
 }

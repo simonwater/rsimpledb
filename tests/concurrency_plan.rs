@@ -12,21 +12,21 @@ pub fn planner_multi_thread1() {
     let _guard = TempFileGuard::new(db_dir);
     let db = DataBase::new(db_dir).unwrap();
     let planner = db.planner();
-    let tx = Rc::new(RefCell::new(db.new_tx()));
+    let tx = Rc::new(RefCell::new(db.new_tx().unwrap()));
     // create table in main thread
     create_table(planner, tx.clone(), "T");
     insert_table(planner, tx.clone(), "T", (0, 1000));
-    tx.borrow_mut().commit();
+    tx.borrow_mut().commit().unwrap();
 
     let headers = vec![];
     let runner = MultiThreadRunner::new(2, headers);
     runner.excute(move |tid| {
-        let tx = Rc::new(RefCell::new(db.new_tx()));
+        let tx = Rc::new(RefCell::new(db.new_tx().unwrap()));
         let planner = db.planner();
         update_table(&planner, Rc::clone(&tx), "T", tid);
         //insert_table(planner, tx.clone(), "T", (tid, tid));
         //check_table(planner, tx.clone(), "T", tid);
-        tx.borrow_mut().commit();
+        tx.borrow_mut().commit().unwrap();
         vec![]
     });
 }
@@ -37,13 +37,13 @@ pub fn planner_multi_thread2() {
     let _guard = TempFileGuard::new(db_dir);
     let db = DataBase::new(db_dir).unwrap();
     // create tables in main thread
-    let tx = Rc::new(RefCell::new(db.new_tx()));
+    let tx = Rc::new(RefCell::new(db.new_tx().unwrap()));
     let planner = db.planner();
     let cmd = "create table T1(A1 int, B1 varchar(9))";
     planner.execute_update(cmd, Rc::clone(&tx)).unwrap();
     let cmd = "create table T2(A2 int, B2 varchar(9))";
     planner.execute_update(cmd, Rc::clone(&tx)).unwrap();
-    tx.borrow_mut().commit();
+    tx.borrow_mut().commit().unwrap();
 
     let headers = vec![];
     let runner = MultiThreadRunner::new(10, headers);
@@ -55,7 +55,7 @@ pub fn planner_multi_thread2() {
 
 fn multi_table_test(db: &DataBase, tid: usize) {
     let planner = db.planner();
-    let tx = Rc::new(RefCell::new(db.new_tx()));
+    let tx = Rc::new(RefCell::new(db.new_tx().unwrap()));
 
     let start = tid * 100;
     let cmd = "create table T1(A1 int, B1 varchar(9))";
@@ -90,7 +90,7 @@ fn multi_table_test(db: &DataBase, tid: usize) {
     }
     assert_eq!(3, cnt);
     s.close();
-    tx.borrow_mut().commit();
+    tx.borrow_mut().commit().unwrap();
 }
 
 fn create_table(planner: &Planner, tx: Rc<RefCell<Transaction>>, tbl: &str) {
@@ -118,5 +118,5 @@ fn check_table(planner: &Planner, tx: Rc<RefCell<Transaction>>, tbl: &str, id: u
         assert_eq!(format!("rec{id}"), s.get_string("b").unwrap());
     }
     s.close();
-    tx.borrow_mut().commit();
+    tx.borrow_mut().commit().unwrap();
 }

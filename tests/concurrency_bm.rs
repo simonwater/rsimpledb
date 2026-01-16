@@ -11,15 +11,15 @@ fn test_buffer_manager_concurrency() {
     // 1. 初始化文件管理器和缓冲区管理器
     let db_dir = ".temp/bmdb2";
     let _guard = TempFileGuard::new(db_dir);
-    let mut fm = FileMgr::new(PathBuf::from(db_dir), 400);
-    let lm = LogMgr::new(fm.clone(), "testlog.log".to_string());
+    let mut fm = FileMgr::new(PathBuf::from(db_dir), 400).unwrap();
+    let lm = LogMgr::new(fm.clone(), "testlog.log".to_string()).unwrap();
     let bm = BufferMgr::new(fm.clone(), lm.clone(), 10);
 
     // 2. 创建测试文件和块
     let filename = "testfile";
-    if fm.length(filename) == 0 {
+    if fm.length(filename).unwrap() == 0 {
         for _ in 0..5 {
-            fm.append(filename);
+            fm.append(filename).unwrap();
         }
     }
 

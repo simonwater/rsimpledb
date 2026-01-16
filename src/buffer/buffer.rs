@@ -1,3 +1,4 @@
+use crate::DbResult;
 use crate::file::{BlockId, FileMgr, Page};
 use crate::log::LogMgr;
 
@@ -64,22 +65,24 @@ impl Buffer {
 
     /// Reads the contents of the specified block into the buffer.
     /// If the buffer was dirty, its previous contents are written to disk first.
-    pub fn assign_to_block(&mut self, b: BlockId) {
-        self.flush();
+    pub fn assign_to_block(&mut self, b: BlockId) -> DbResult<()> {
+        self.flush()?;
         self.blk = Some(b.clone());
-        self.fm.read(&b, &mut self.contents);
+        self.fm.read(&b, &mut self.contents)?;
         self.pins = 0;
+        Ok(())
     }
 
     /// Writes the buffer to disk if it is dirty (txnum >= 0)
-    pub fn flush(&mut self) {
+    pub fn flush(&mut self) -> DbResult<()> {
         if self.txnum >= 0 {
             if let Some(ref blk) = self.blk {
-                self.lm.flush(self.lsn);
-                self.fm.write(blk, &self.contents);
+                self.lm.flush(self.lsn)?;
+                self.fm.write(blk, &self.contents)?;
                 self.txnum = -1;
             }
         }
+        Ok(())
     }
 
     /// Increases the pin count

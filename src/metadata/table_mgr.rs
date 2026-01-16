@@ -117,7 +117,7 @@ mod tests {
         let db_dir = ".temp/tblmgrtest";
         let _guard = TempFileGuard::new(db_dir);
         let db: DataBase = DataBase::new(db_dir).unwrap();
-        let tx = Rc::new(RefCell::new(db.new_tx()));
+        let tx = Rc::new(RefCell::new(db.new_tx().unwrap()));
         let tm = TableMgr::new(true, Rc::clone(&tx)).unwrap();
 
         let mut sch = Schema::new();

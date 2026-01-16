@@ -24,11 +24,11 @@ pub struct Transaction {
 
 impl Transaction {
     /// Create a new transaction and its associated recovery and concurrency managers
-    pub fn new(fm: FileMgr, lm: LogMgr, bm: BufferMgr, lt: LockTable) -> Self {
+    pub fn new(fm: FileMgr, lm: LogMgr, bm: BufferMgr, lt: LockTable) -> DbResult<Self> {
         let txnum = Self::next_tx_number();
-        let recovery_mgr = RecoveryMgr::new(txnum, lm.clone(), bm.clone());
+        let recovery_mgr = RecoveryMgr::new(txnum, lm.clone(), bm.clone())?;
 
-        Self {
+        Ok(Self {
             recovery_mgr,
             concur_mgr: ConcurrencyMgr::new(lt),
             bm: bm.clone(),
@@ -36,29 +36,32 @@ impl Transaction {
             fm,
             txnum,
             mybuffers: BufferList::new(bm.clone()),
-        }
+        })
     }
 
     /// Commit the current transaction
-    pub fn commit(&mut self) {
-        self.recovery_mgr.commit();
+    pub fn commit(&mut self) -> DbResult<()> {
+        self.recovery_mgr.commit()?;
         //println!("transaction {} committed", self.txnum);
         self.concur_mgr.release(self.txnum);
         self.mybuffers.unpin_all();
+        Ok(())
     }
 
     /// Rollback the current transaction
-    pub fn rollback(&mut self) {
-        RecoveryMgr::rollback(self.lm.clone(), self.bm.clone(), self);
+    pub fn rollback(&mut self) -> DbResult<()> {
+        RecoveryMgr::rollback(self.lm.clone(), self.bm.clone(), self)?;
         //println!("transaction {} rolled back", self.txnum);
         self.concur_mgr.release(self.txnum);
         self.mybuffers.unpin_all();
+        Ok(())
     }
 
     /// Recover uncompleted transactions
-    pub fn recover(&mut self) {
-        self.bm.flush_all(self.txnum);
-        RecoveryMgr::recover(self.lm.clone(), self.bm.clone(), self);
+    pub fn recover(&mut self) -> DbResult<()> {
+        self.bm.flush_all(self.txnum)?;
+        RecoveryMgr::recover(self.lm.clone(), self.bm.clone(), self)?;
+        Ok(())
     }
 
     /// Pin the specified block
@@ -107,7 +110,7 @@ impl Transaction {
             .get_buffer(blk)
             .ok_or_else(|| TxError::LocalBufferNotFound(self.txnum, blk.clone()))?;
         let lsn = if ok_to_log {
-            self.recovery_mgr.set_int(&buff, offset, val)
+            self.recovery_mgr.set_int(&buff, offset, val)?
         } else {
             -1
         };
@@ -131,7 +134,7 @@ impl Transaction {
             .get_buffer(blk)
             .ok_or_else(|| TxError::LocalBufferNotFound(self.txnum, blk.clone()))?;
         let lsn = if ok_to_log {
-            self.recovery_mgr.set_string(&buff, offset, val)
+            self.recovery_mgr.set_string(&buff, offset, val)?
         } else {
             -1
         };
@@ -145,14 +148,14 @@ impl Transaction {
     pub fn size(&mut self, filename: &str) -> DbResult<usize> {
         let dummyblk = BlockId::new(filename.to_string(), END_OF_FILE);
         self.concur_mgr.s_lock(&dummyblk, self.txnum)?;
-        Ok(self.fm.length(filename))
+        self.fm.length(filename)
     }
 
     /// Append a new block to the end of the specified file
     pub fn append(&mut self, filename: &str) -> DbResult<BlockId> {
         let dummyblk = BlockId::new(filename.to_string(), END_OF_FILE);
         self.concur_mgr.x_lock(&dummyblk, self.txnum)?;
-        Ok(self.fm.append(filename))
+        self.fm.append(filename)
     }
 
     pub fn block_size(&self) -> usize {
@@ -185,20 +188,20 @@ pub mod tests {
         let _guard = TempFileGuard::new(db_dir);
         let db: DataBase = DataBase::new(db_dir).unwrap();
         let mut fm = db.file_mgr();
-        let blk = fm.append("testfile");
+        let blk = fm.append("testfile").unwrap();
         tx_test(db, blk);
     }
 
     fn tx_test(db: DataBase, blk: BlockId) {
-        let mut tx1 = db.new_tx();
+        let mut tx1 = db.new_tx().unwrap();
         tx1.pin(&blk).unwrap();
         tx1.set_int(&blk, 0, 123, true).unwrap();
         tx1.set_string(&blk, 10, "hello", true).unwrap();
         assert_eq!(123, tx1.get_int(&blk, 0).unwrap());
         assert_eq!("hello".to_string(), tx1.get_string(&blk, 10).unwrap());
-        tx1.commit();
+        tx1.commit().unwrap();
 
-        let mut tx2 = db.new_tx();
+        let mut tx2 = db.new_tx().unwrap();
         tx2.pin(&blk).unwrap();
         let ival = tx2.get_int(&blk, 0).unwrap();
         let sval = tx2.get_string(&blk, 10).unwrap();
@@ -208,20 +211,20 @@ pub mod tests {
         tx2.set_string(&blk, 10, "world", true).unwrap();
         assert_eq!(456, tx2.get_int(&blk, 0).unwrap());
         assert_eq!("world".to_string(), tx2.get_string(&blk, 10).unwrap());
-        tx2.commit();
+        tx2.commit().unwrap();
 
-        let mut tx3 = db.new_tx();
+        let mut tx3 = db.new_tx().unwrap();
         tx3.pin(&blk).unwrap();
         assert_eq!(456, tx3.get_int(&blk, 0).unwrap());
         assert_eq!("world".to_string(), tx3.get_string(&blk, 10).unwrap());
         tx3.set_int(&blk, 0, 999, true).unwrap();
         assert_eq!(999, tx3.get_int(&blk, 0).unwrap());
-        tx3.rollback();
+        tx3.rollback().unwrap();
 
-        let mut tx4 = db.new_tx();
+        let mut tx4 = db.new_tx().unwrap();
         tx4.pin(&blk).unwrap();
         assert_eq!(456, tx4.get_int(&blk, 0).unwrap());
         assert_eq!("world".to_string(), tx4.get_string(&blk, 10).unwrap());
-        tx4.commit();
+        tx4.commit().unwrap();
     }
 }
