@@ -1,3 +1,4 @@
+use crate::DbResult;
 use crate::metadata::MetadataMgr;
 use crate::plan::Plan;
 use crate::query::Scan;
@@ -17,27 +18,27 @@ pub struct TablePlan {
 
 impl TablePlan {
     /// Creates a leaf node in the query tree corresponding to the specified table
-    pub fn new(tx: Rc<RefCell<Transaction>>, tblname: &str, md: &MetadataMgr) -> Self {
-        let layout = md.get_layout(tblname, Rc::clone(&tx));
+    pub fn new(tx: Rc<RefCell<Transaction>>, tblname: &str, md: &MetadataMgr) -> DbResult<Self> {
+        let layout = md.get_layout(tblname, Rc::clone(&tx))?;
         let arc_layout = Arc::new(layout);
-        let si = md.get_stat_info(tblname, Arc::clone(&arc_layout), Rc::clone(&tx));
-        TablePlan {
+        let si = md.get_stat_info(tblname, Arc::clone(&arc_layout), Rc::clone(&tx))?;
+        Ok(TablePlan {
             tblname: tblname.to_string(),
             tx,
             layout: arc_layout,
             si,
-        }
+        })
     }
 }
 
 impl Plan for TablePlan {
     /// Creates a table scan for this query
-    fn open(&self) -> Box<dyn Scan> {
-        Box::new(TableScan::new(
+    fn open(&self) -> DbResult<Box<dyn Scan>> {
+        Ok(Box::new(TableScan::new(
             Rc::clone(&self.tx),
             &self.tblname,
             self.layout.clone(),
-        ))
+        )?))
     }
 
     /// Estimates the number of block accesses for the table

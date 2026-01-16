@@ -18,9 +18,9 @@ pub struct RecordPage {
 }
 
 impl RecordPage {
-    pub fn new(tx: Rc<RefCell<Transaction>>, blk: BlockId, layout: Arc<Layout>) -> Self {
-        tx.borrow_mut().pin(&blk).expect("Failed to pin block");
-        RecordPage { tx, blk, layout }
+    pub fn new(tx: Rc<RefCell<Transaction>>, blk: BlockId, layout: Arc<Layout>) -> DbResult<Self> {
+        tx.borrow_mut().pin(&blk)?;
+        Ok(RecordPage { tx, blk, layout })
     }
 
     /// Return the integer value stored for the specified field of a specified slot
@@ -138,7 +138,7 @@ mod tests {
     fn record_test() {
         let db_dir = ".temp/recorddb";
         let _guard = TempFileGuard::new(db_dir);
-        let db: DataBase = DataBase::new(db_dir);
+        let db: DataBase = DataBase::new(db_dir).unwrap();
         let tx = Rc::new(RefCell::new(db.new_tx()));
 
         // 创建模式和布局
@@ -153,7 +153,7 @@ mod tests {
 
         // 在文件末尾追加一个块并创建 RecordPage
         let blk = tx.borrow_mut().append("testfile").expect("append failed");
-        let mut rp = RecordPage::new(Rc::clone(&tx), blk, Arc::new(layout));
+        let mut rp = RecordPage::new(Rc::clone(&tx), blk, Arc::new(layout)).unwrap();
         rp.format().expect("format failed");
 
         // 往slot中填充记录

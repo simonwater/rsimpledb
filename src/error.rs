@@ -24,7 +24,7 @@ pub enum DbError {
 
     // 用于快速抛出的通用错误
     #[error("System internal error: {0}")]
-    Internal(String),
+    Internal(&'static str),
 }
 
-pub type DbResult<T> = std::result::Result<T, DbError>;
+pub type DbResult<T> = Result<T, DbError>;

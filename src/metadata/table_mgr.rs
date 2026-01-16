@@ -1,3 +1,4 @@
+use crate::DbResult;
 use crate::query::{Scan, UpdateScan};
 use crate::record::{Layout, Schema, TableScan};
 use crate::tx::Transaction;
@@ -18,7 +19,7 @@ pub struct TableMgr {
 
 impl TableMgr {
     /// Create a new catalog manager for the database system
-    pub fn new(is_new: bool, tx: Rc<RefCell<Transaction>>) -> Self {
+    pub fn new(is_new: bool, tx: Rc<RefCell<Transaction>>) -> DbResult<Self> {
         let mut tcat_schema = Schema::new();
         tcat_schema.add_string_field("tblname", MAX_NAME);
         tcat_schema.add_int_field("slotsize");
@@ -40,42 +41,48 @@ impl TableMgr {
         };
 
         if is_new {
-            tm.create_table("tblcat", tcat_schema, Rc::clone(&tx));
-            tm.create_table("fldcat", fcat_schema, Rc::clone(&tx));
+            tm.create_table("tblcat", tcat_schema, Rc::clone(&tx))?;
+            tm.create_table("fldcat", fcat_schema, Rc::clone(&tx))?;
         }
-        tm
+        Ok(tm)
     }
 
     /// Create a new table having the specified name and schema
-    pub fn create_table(&self, tblname: &str, sch: Arc<Schema>, tx: Rc<RefCell<Transaction>>) {
+    pub fn create_table(
+        &self,
+        tblname: &str,
+        sch: Arc<Schema>,
+        tx: Rc<RefCell<Transaction>>,
+    ) -> DbResult<()> {
         let layout = Layout::new(sch);
         // insert one record into tblcat
-        let mut tcat = TableScan::new(Rc::clone(&tx), "tblcat", Arc::clone(&self.tcat_layout));
-        tcat.insert();
-        tcat.set_string("tblname", tblname);
-        tcat.set_int("slotsize", layout.slot_size());
+        let mut tcat = TableScan::new(Rc::clone(&tx), "tblcat", Arc::clone(&self.tcat_layout))?;
+        tcat.insert()?;
+        tcat.set_string("tblname", tblname)?;
+        tcat.set_int("slotsize", layout.slot_size())?;
         tcat.close();
 
         // insert a record into fldcat for each field
-        let mut fcat = TableScan::new(tx, "fldcat", self.fcat_layout.clone());
+        let mut fcat = TableScan::new(tx, "fldcat", self.fcat_layout.clone())?;
         for fldname in layout.schema().fields() {
-            fcat.insert();
-            fcat.set_string("tblname", tblname);
-            fcat.set_string("fldname", fldname);
-            fcat.set_int("type", layout.schema().ftype(fldname));
-            fcat.set_int("length", layout.schema().length(fldname));
-            fcat.set_int("offset", layout.offset(fldname));
+            fcat.insert()?;
+            fcat.set_string("tblname", tblname)?;
+            fcat.set_string("fldname", fldname)?;
+            fcat.set_int("type", layout.schema().ftype(fldname))?;
+            fcat.set_int("length", layout.schema().length(fldname))?;
+            fcat.set_int("offset", layout.offset(fldname))?;
         }
         fcat.close();
+        Ok(())
     }
 
     /// Retrieve the layout of the specified table from the catalog
-    pub fn get_layout(&self, tblname: &str, tx: Rc<RefCell<Transaction>>) -> Layout {
+    pub fn get_layout(&self, tblname: &str, tx: Rc<RefCell<Transaction>>) -> DbResult<Layout> {
         let mut size = -1;
-        let mut tcat = TableScan::new(Rc::clone(&tx), "tblcat", self.tcat_layout.clone());
-        while tcat.next() {
-            if tcat.get_string("tblname") == tblname {
-                size = tcat.get_int("slotsize");
+        let mut tcat = TableScan::new(Rc::clone(&tx), "tblcat", self.tcat_layout.clone())?;
+        while tcat.next()? {
+            if tcat.get_string("tblname")? == tblname {
+                size = tcat.get_int("slotsize")?;
                 break;
             }
         }
@@ -83,19 +90,19 @@ impl TableMgr {
 
         let mut sch = Schema::new();
         let mut offsets = HashMap::new();
-        let mut fcat = TableScan::new(tx, "fldcat", self.fcat_layout.clone());
-        while fcat.next() {
-            if fcat.get_string("tblname") == tblname {
-                let fldname = fcat.get_string("fldname");
-                let fldtype = fcat.get_int("type");
-                let fldlen = fcat.get_int("length");
-                let offset = fcat.get_int("offset");
+        let mut fcat = TableScan::new(tx, "fldcat", self.fcat_layout.clone())?;
+        while fcat.next()? {
+            if fcat.get_string("tblname")? == tblname {
+                let fldname = fcat.get_string("fldname")?;
+                let fldtype = fcat.get_int("type")?;
+                let fldlen = fcat.get_int("length")?;
+                let offset = fcat.get_int("offset")?;
                 offsets.insert(fldname.clone(), offset);
                 sch.add_field(&fldname, fldtype, fldlen);
             }
         }
         fcat.close();
-        Layout::from_metadata(Arc::new(sch), offsets, size)
+        Ok(Layout::from_metadata(Arc::new(sch), offsets, size))
     }
 }
 
@@ -109,16 +116,17 @@ mod tests {
     fn table_mgr_test() {
         let db_dir = ".temp/tblmgrtest";
         let _guard = TempFileGuard::new(db_dir);
-        let db: DataBase = DataBase::new(db_dir);
+        let db: DataBase = DataBase::new(db_dir).unwrap();
         let tx = Rc::new(RefCell::new(db.new_tx()));
-        let tm = TableMgr::new(true, Rc::clone(&tx));
+        let tm = TableMgr::new(true, Rc::clone(&tx)).unwrap();
 
         let mut sch = Schema::new();
         sch.add_int_field("A");
         sch.add_string_field("B", 9);
-        tm.create_table("MyTable", Arc::new(sch), Rc::clone(&tx));
+        tm.create_table("MyTable", Arc::new(sch), Rc::clone(&tx))
+            .unwrap();
 
-        let layout = tm.get_layout("MyTable", Rc::clone(&tx));
+        let layout = tm.get_layout("MyTable", Rc::clone(&tx)).unwrap();
         let size = layout.slot_size();
         assert_eq!(48, size);
         let sch2 = layout.schema();

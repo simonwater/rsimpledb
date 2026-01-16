@@ -1,5 +1,6 @@
 use crate::query::{Constant, Predicate, Scan, UpdateScan};
 use crate::record::RID;
+use crate::{DbError, DbResult};
 
 /// The scan class corresponding to the select relational algebra operator
 pub struct SelectScan {
@@ -15,28 +16,28 @@ impl SelectScan {
 }
 
 impl Scan for SelectScan {
-    fn before_first(&mut self) {
-        self.s.before_first();
+    fn before_first(&mut self) -> DbResult<()> {
+        self.s.before_first()
     }
 
-    fn next(&mut self) -> bool {
-        while self.s.next() {
-            if self.pred.is_satisfied(self.s.as_mut()) {
-                return true;
+    fn next(&mut self) -> DbResult<bool> {
+        while self.s.next()? {
+            if self.pred.is_satisfied(self.s.as_mut())? {
+                return Ok(true);
             }
         }
-        false
+        Ok(false)
     }
 
-    fn get_int(&mut self, fldname: &str) -> i32 {
+    fn get_int(&mut self, fldname: &str) -> DbResult<i32> {
         self.s.get_int(fldname)
     }
 
-    fn get_string(&mut self, fldname: &str) -> String {
+    fn get_string(&mut self, fldname: &str) -> DbResult<String> {
         self.s.get_string(fldname)
     }
 
-    fn get_val(&mut self, fldname: &str) -> Constant {
+    fn get_val(&mut self, fldname: &str) -> DbResult<Constant> {
         self.s.get_val(fldname)
     }
 
@@ -56,43 +57,53 @@ impl Scan for SelectScan {
 // Note: SelectScan can only implement UpdateScan if the underlying scan is UpdateScan
 // This is a simplified version - in a full implementation, we'd need to check the type
 impl UpdateScan for SelectScan {
-    fn set_int(&mut self, fldname: &str, val: i32) {
+    fn set_int(&mut self, fldname: &str, val: i32) -> DbResult<()> {
         if let Some(us) = self.s.as_update_scan() {
-            us.set_int(fldname, val);
+            us.set_int(fldname, val)
         } else {
-            panic!("underlying scan does not support updates");
+            Err(DbError::Internal(
+                "underlying scan does not support updates",
+            ))
         }
     }
 
-    fn set_string(&mut self, fldname: &str, val: &str) {
+    fn set_string(&mut self, fldname: &str, val: &str) -> DbResult<()> {
         if let Some(us) = self.s.as_update_scan() {
-            us.set_string(fldname, val);
+            us.set_string(fldname, val)
         } else {
-            panic!("underlying scan does not support updates");
+            Err(DbError::Internal(
+                "underlying scan does not support updates",
+            ))
         }
     }
 
-    fn set_val(&mut self, fldname: &str, val: &Constant) {
+    fn set_val(&mut self, fldname: &str, val: &Constant) -> DbResult<()> {
         if let Some(us) = self.s.as_update_scan() {
-            us.set_val(fldname, val);
+            us.set_val(fldname, val)
         } else {
-            panic!("underlying scan does not support updates");
+            Err(DbError::Internal(
+                "underlying scan does not support updates",
+            ))
         }
     }
 
-    fn insert(&mut self) {
+    fn insert(&mut self) -> DbResult<()> {
         if let Some(us) = self.s.as_update_scan() {
-            us.insert();
+            us.insert()
         } else {
-            panic!("underlying scan does not support updates");
+            Err(DbError::Internal(
+                "underlying scan does not support updates",
+            ))
         }
     }
 
-    fn delete(&mut self) {
+    fn delete(&mut self) -> DbResult<()> {
         if let Some(us) = self.s.as_update_scan() {
-            us.delete();
+            us.delete()
         } else {
-            panic!("underlying scan does not support updates");
+            Err(DbError::Internal(
+                "underlying scan does not support updates",
+            ))
         }
     }
 
@@ -104,11 +115,13 @@ impl UpdateScan for SelectScan {
         }
     }
 
-    fn move_to_rid(&mut self, _rid: &RID) {
+    fn move_to_rid(&mut self, rid: &RID) -> DbResult<()> {
         if let Some(us) = self.s.as_update_scan() {
-            us.move_to_rid(_rid);
+            us.move_to_rid(rid)
         } else {
-            panic!("underlying scan does not support updates");
+            Err(DbError::Internal(
+                "underlying scan does not support updates",
+            ))
         }
     }
 }

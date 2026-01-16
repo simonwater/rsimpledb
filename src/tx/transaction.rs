@@ -62,7 +62,7 @@ impl Transaction {
     }
 
     /// Pin the specified block
-    pub fn pin(&mut self, blk: &BlockId) -> Result<(), crate::buffer::BufferAbortException> {
+    pub fn pin(&mut self, blk: &BlockId) -> DbResult<()> {
         self.mybuffers.pin(blk)
     }
 
@@ -183,7 +183,7 @@ pub mod tests {
     fn tx_simple_test() {
         let db_dir = ".temp/txdb1";
         let _guard = TempFileGuard::new(db_dir);
-        let db: DataBase = DataBase::new(db_dir);
+        let db: DataBase = DataBase::new(db_dir).unwrap();
         let mut fm = db.file_mgr();
         let blk = fm.append("testfile");
         tx_test(db, blk);

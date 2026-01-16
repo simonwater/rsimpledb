@@ -5,6 +5,7 @@ use crate::parse::{
 use crate::plan::{Plan, UpdatePlanner};
 use crate::plan::{SelectPlan, TablePlan};
 use crate::tx::Transaction;
+use crate::{DbError, DbResult};
 use std::cell::RefCell;
 use std::rc::Rc;
 use std::sync::Arc;
@@ -21,80 +22,102 @@ impl BasicUpdatePlanner {
 }
 
 impl UpdatePlanner for BasicUpdatePlanner {
-    fn execute_delete(&self, data: &DeleteData, tx: Rc<RefCell<Transaction>>) -> i32 {
-        let mut p: Box<dyn Plan> =
-            Box::new(TablePlan::new(Rc::clone(&tx), data.table_name(), &self.mdm));
+    fn execute_delete(&self, data: &DeleteData, tx: Rc<RefCell<Transaction>>) -> DbResult<i32> {
+        let mut p: Box<dyn Plan> = Box::new(TablePlan::new(
+            Rc::clone(&tx),
+            data.table_name(),
+            &self.mdm,
+        )?);
         if !data.pred().is_empty() {
             p = Box::new(SelectPlan::new(p, data.pred().clone()));
         }
-        let mut s = p.open();
+        let mut s = p.open()?;
         let mut count = 0;
         if let Some(us) = s.as_update_scan() {
-            while us.next() {
-                us.delete();
+            while us.next()? {
+                us.delete()?;
                 count += 1;
             }
         } else {
-            panic!("plan does not produce an UpdateScan");
+            return Err(DbError::Internal("plan does not produce an UpdateScan"));
         }
         s.close();
-        count
+        Ok(count)
     }
 
-    fn execute_modify(&self, data: &ModifyData, tx: Rc<RefCell<Transaction>>) -> i32 {
-        let mut p: Box<dyn Plan> =
-            Box::new(TablePlan::new(Rc::clone(&tx), data.table_name(), &self.mdm));
+    fn execute_modify(&self, data: &ModifyData, tx: Rc<RefCell<Transaction>>) -> DbResult<i32> {
+        let mut p: Box<dyn Plan> = Box::new(TablePlan::new(
+            Rc::clone(&tx),
+            data.table_name(),
+            &self.mdm,
+        )?);
         if !data.pred().is_empty() {
             p = Box::new(SelectPlan::new(p, data.pred().clone()));
         }
-        let mut s = p.open();
+        let mut s = p.open()?;
         let mut count = 0;
         if let Some(us) = s.as_update_scan() {
-            while us.next() {
-                let val = data.new_value().evaluate(us);
-                us.set_val(data.target_field(), &val);
+            while us.next()? {
+                let val = data.new_value().evaluate(us)?;
+                us.set_val(data.target_field(), &val)?;
                 count += 1;
             }
         } else {
-            panic!("plan does not produce an UpdateScan");
+            return Err(DbError::Internal("plan does not produce an UpdateScan"));
         }
         s.close();
-        count
+        Ok(count)
     }
 
-    fn execute_insert(&self, data: &InsertData, tx: Rc<RefCell<Transaction>>) -> i32 {
-        let p: Box<dyn Plan> =
-            Box::new(TablePlan::new(Rc::clone(&tx), data.table_name(), &self.mdm));
-        let mut s = p.open();
+    fn execute_insert(&self, data: &InsertData, tx: Rc<RefCell<Transaction>>) -> DbResult<i32> {
+        let p: Box<dyn Plan> = Box::new(TablePlan::new(
+            Rc::clone(&tx),
+            data.table_name(),
+            &self.mdm,
+        )?);
+        let mut s = p.open()?;
         if let Some(us) = s.as_update_scan() {
-            us.insert();
+            us.insert()?;
             let mut iter = data.vals().iter();
             for fldname in data.fields() {
                 if let Some(val) = iter.next() {
-                    us.set_val(fldname, val);
+                    us.set_val(fldname, val)?;
                 }
             }
         } else {
-            panic!("plan does not produce an UpdateScan");
+            return Err(DbError::Internal("plan does not produce an UpdateScan"));
         }
         s.close();
-        1
+        Ok(1)
     }
 
-    fn execute_create_table(&self, data: &CreateTableData, tx: Rc<RefCell<Transaction>>) -> i32 {
-        self.mdm.create_table(data.table_name(), data.schema(), tx);
-        0
-    }
-
-    fn execute_create_view(&self, data: &CreateViewData, tx: Rc<RefCell<Transaction>>) -> i32 {
-        let viewdef = data.view_def();
-        self.mdm.create_view(data.view_name(), &viewdef, tx);
-        0
-    }
-
-    fn execute_create_index(&self, data: &CreateIndexData, tx: Rc<RefCell<Transaction>>) -> i32 {
+    fn execute_create_table(
+        &self,
+        data: &CreateTableData,
+        tx: Rc<RefCell<Transaction>>,
+    ) -> DbResult<i32> {
         self.mdm
-            .create_index(data.index_name(), data.table_name(), data.field_name(), tx);
-        0
+            .create_table(data.table_name(), data.schema(), tx)?;
+        Ok(0)
+    }
+
+    fn execute_create_view(
+        &self,
+        data: &CreateViewData,
+        tx: Rc<RefCell<Transaction>>,
+    ) -> DbResult<i32> {
+        let viewdef = data.view_def();
+        self.mdm.create_view(data.view_name(), &viewdef, tx)?;
+        Ok(0)
+    }
+
+    fn execute_create_index(
+        &self,
+        data: &CreateIndexData,
+        tx: Rc<RefCell<Transaction>>,
+    ) -> DbResult<i32> {
+        self.mdm
+            .create_index(data.index_name(), data.table_name(), data.field_name(), tx)?;
+        Ok(0)
     }
 }

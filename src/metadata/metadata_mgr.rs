@@ -1,3 +1,4 @@
+use crate::DbResult;
 use crate::metadata::{IndexInfo, IndexMgr, StatInfo, StatMgr, TableMgr, ViewMgr};
 use crate::record::{Layout, Schema};
 use crate::tx::Transaction;
@@ -16,33 +17,47 @@ pub struct MetadataMgr {
 }
 
 impl MetadataMgr {
-    pub fn new(is_new: bool, tx: Rc<RefCell<Transaction>>) -> Self {
-        let tbl_mgr = TableMgr::new(is_new, Rc::clone(&tx));
-        let view_mgr = ViewMgr::new(is_new, tbl_mgr.clone(), Rc::clone(&tx));
-        let stat_mgr = StatMgr::new(tbl_mgr.clone(), Rc::clone(&tx));
-        let idx_mgr = IndexMgr::new(is_new, tbl_mgr.clone(), stat_mgr.clone(), tx);
+    pub fn new(is_new: bool, tx: Rc<RefCell<Transaction>>) -> DbResult<Self> {
+        let tbl_mgr = TableMgr::new(is_new, Rc::clone(&tx))?;
+        let view_mgr = ViewMgr::new(is_new, tbl_mgr.clone(), Rc::clone(&tx))?;
+        let stat_mgr = StatMgr::new(tbl_mgr.clone(), Rc::clone(&tx))?;
+        let idx_mgr = IndexMgr::new(is_new, tbl_mgr.clone(), stat_mgr.clone(), tx)?;
 
-        MetadataMgr {
+        Ok(MetadataMgr {
             tbl_mgr,
             view_mgr,
             stat_mgr,
             idx_mgr,
-        }
+        })
     }
 
-    pub fn create_table(&self, tblname: &str, sch: Arc<Schema>, tx: Rc<RefCell<Transaction>>) {
-        self.tbl_mgr.create_table(tblname, sch, tx);
+    pub fn create_table(
+        &self,
+        tblname: &str,
+        sch: Arc<Schema>,
+        tx: Rc<RefCell<Transaction>>,
+    ) -> DbResult<()> {
+        self.tbl_mgr.create_table(tblname, sch, tx)
     }
 
-    pub fn get_layout(&self, tblname: &str, tx: Rc<RefCell<Transaction>>) -> Layout {
+    pub fn get_layout(&self, tblname: &str, tx: Rc<RefCell<Transaction>>) -> DbResult<Layout> {
         self.tbl_mgr.get_layout(tblname, tx)
     }
 
-    pub fn create_view(&self, viewname: &str, viewdef: &str, tx: Rc<RefCell<Transaction>>) {
-        self.view_mgr.create_view(viewname, viewdef, tx);
+    pub fn create_view(
+        &self,
+        viewname: &str,
+        viewdef: &str,
+        tx: Rc<RefCell<Transaction>>,
+    ) -> DbResult<()> {
+        self.view_mgr.create_view(viewname, viewdef, tx)
     }
 
-    pub fn get_view_def(&self, viewname: &str, tx: Rc<RefCell<Transaction>>) -> Option<String> {
+    pub fn get_view_def(
+        &self,
+        viewname: &str,
+        tx: Rc<RefCell<Transaction>>,
+    ) -> DbResult<Option<String>> {
         self.view_mgr.get_view_def(viewname, tx)
     }
 
@@ -52,15 +67,16 @@ impl MetadataMgr {
         tblname: &str,
         fldname: &str,
         tx: Rc<RefCell<Transaction>>,
-    ) {
-        self.idx_mgr.create_index(idxname, tblname, fldname, tx);
+    ) -> DbResult<()> {
+        self.idx_mgr.create_index(idxname, tblname, fldname, tx)?;
+        Ok(())
     }
 
     pub fn get_index_info(
         &self,
         tblname: &str,
         tx: Rc<RefCell<Transaction>>,
-    ) -> HashMap<String, IndexInfo> {
+    ) -> DbResult<HashMap<String, IndexInfo>> {
         self.idx_mgr.get_index_info(tblname, tx)
     }
 
@@ -69,7 +85,7 @@ impl MetadataMgr {
         tblname: &str,
         layout: Arc<Layout>,
         tx: Rc<RefCell<Transaction>>,
-    ) -> StatInfo {
+    ) -> DbResult<StatInfo> {
         self.stat_mgr.get_stat_info(tblname, layout, tx)
     }
 }
@@ -87,16 +103,17 @@ mod tests {
     fn mdm_test() {
         let db_dir = ".temp/mdmtest";
         let _guard = TempFileGuard::new(db_dir);
-        let db: DataBase = DataBase::new(db_dir);
+        let db: DataBase = DataBase::new(db_dir).unwrap();
         let tx = Rc::new(RefCell::new(db.new_tx()));
-        let mdm = MetadataMgr::new(true, Rc::clone(&tx));
+        let mdm = MetadataMgr::new(true, Rc::clone(&tx)).unwrap();
 
         // Part 1: Table Metadata
         let mut sch = Schema::new();
         sch.add_int_field("A");
         sch.add_string_field("B", 9);
-        mdm.create_table("MyTable", Arc::new(sch), Rc::clone(&tx));
-        let layout = mdm.get_layout("MyTable", Rc::clone(&tx));
+        mdm.create_table("MyTable", Arc::new(sch), Rc::clone(&tx))
+            .unwrap();
+        let layout = mdm.get_layout("MyTable", Rc::clone(&tx)).unwrap();
         let layout = Arc::new(layout);
         let size = layout.slot_size();
         assert_eq!(48, size);
@@ -108,13 +125,15 @@ mod tests {
         assert_eq!(9, sch2.length("B"));
 
         // Part 2: Statistics Metadata
-        let mut ts = TableScan::new(Rc::clone(&tx), "MyTable", Arc::clone(&layout));
+        let mut ts = TableScan::new(Rc::clone(&tx), "MyTable", Arc::clone(&layout)).unwrap();
         for i in 1..=50 {
-            ts.insert();
-            ts.set_int("A", i);
-            ts.set_string("B", &format!("rec{i}"));
+            ts.insert().unwrap();
+            ts.set_int("A", i).unwrap();
+            ts.set_string("B", &format!("rec{i}")).unwrap();
         }
-        let si = mdm.get_stat_info("MyTable", Arc::clone(&layout), Rc::clone(&tx));
+        let si = mdm
+            .get_stat_info("MyTable", Arc::clone(&layout), Rc::clone(&tx))
+            .unwrap();
         assert_eq!(3, si.blocks_accessed());
         assert_eq!(50, si.records_output());
         assert_eq!(17, si.distinct_values("A"));
@@ -122,13 +141,18 @@ mod tests {
 
         // Part 3: View Metadata
         let viewdef = "select B from MyTable where A = 1";
-        mdm.create_view("view_a", viewdef, Rc::clone(&tx));
-        assert_eq!(viewdef, mdm.get_view_def("view_a", Rc::clone(&tx)).unwrap());
+        mdm.create_view("view_a", viewdef, Rc::clone(&tx)).unwrap();
+        assert_eq!(
+            viewdef,
+            mdm.get_view_def("view_a", Rc::clone(&tx)).unwrap().unwrap()
+        );
 
         // Part 4: Index Metadata
-        mdm.create_index("idx_a", "MyTable", "A", Rc::clone(&tx));
-        mdm.create_index("idx_b", "MyTable", "B", Rc::clone(&tx));
-        let idxmap = mdm.get_index_info("MyTable", Rc::clone(&tx));
+        mdm.create_index("idx_a", "MyTable", "A", Rc::clone(&tx))
+            .unwrap();
+        mdm.create_index("idx_b", "MyTable", "B", Rc::clone(&tx))
+            .unwrap();
+        let idxmap = mdm.get_index_info("MyTable", Rc::clone(&tx)).unwrap();
 
         assert!(idxmap.contains_key("A"));
         assert!(idxmap.contains_key("B"));

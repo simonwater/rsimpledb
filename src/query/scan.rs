@@ -1,21 +1,22 @@
+use crate::DbResult;
 use crate::query::{Constant, UpdateScan};
 
 /// The interface implemented by each query scan
 pub trait Scan {
     /// Position the scan before its first record
-    fn before_first(&mut self);
+    fn before_first(&mut self) -> DbResult<()>;
 
     /// Move the scan to the next record
-    fn next(&mut self) -> bool;
+    fn next(&mut self) -> DbResult<bool>;
 
     /// Return the value of the specified integer field in the current record
-    fn get_int(&mut self, fldname: &str) -> i32;
+    fn get_int(&mut self, fldname: &str) -> DbResult<i32>;
 
     /// Return the value of the specified string field in the current record
-    fn get_string(&mut self, fldname: &str) -> String;
+    fn get_string(&mut self, fldname: &str) -> DbResult<String>;
 
     /// Return the value of the specified field in the current record
-    fn get_val(&mut self, fldname: &str) -> Constant;
+    fn get_val(&mut self, fldname: &str) -> DbResult<Constant>;
 
     /// Return true if the scan has the specified field
     fn has_field(&self, fldname: &str) -> bool;

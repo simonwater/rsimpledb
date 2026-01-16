@@ -1,3 +1,4 @@
+use crate::DbResult;
 use crate::plan::Plan;
 use crate::query::{Predicate, Scan, SelectScan};
 use crate::record::Schema;
@@ -18,9 +19,9 @@ impl SelectPlan {
 
 impl Plan for SelectPlan {
     /// Creates a select scan for this query
-    fn open(&self) -> Box<dyn Scan> {
-        let s = self.p.open();
-        Box::new(SelectScan::new(s, self.pred.clone()))
+    fn open(&self) -> DbResult<Box<dyn Scan>> {
+        let s = self.p.open()?;
+        Ok(Box::new(SelectScan::new(s, self.pred.clone())))
     }
 
     /// Estimates the number of block accesses in the selection

@@ -1,3 +1,4 @@
+use crate::DbResult;
 use crate::parse::{CreateCommand, Parser, QueryData, UpdateCommand};
 use crate::plan::{Plan, QueryPlanner, UpdatePlanner};
 use crate::tx::Transaction;
@@ -18,7 +19,11 @@ impl Planner {
     }
 
     /// Creates a plan for an SQL select statement
-    pub fn create_query_plan(&self, qry: &str, tx: Rc<RefCell<Transaction>>) -> Box<dyn Plan> {
+    pub fn create_query_plan(
+        &self,
+        qry: &str,
+        tx: Rc<RefCell<Transaction>>,
+    ) -> DbResult<Box<dyn Plan>> {
         let mut parser = Parser::new(qry);
         let data = parser.query();
         self.verify_query(&data);
@@ -26,7 +31,7 @@ impl Planner {
     }
 
     /// Executes an SQL insert, delete, modify, or create statement
-    pub fn execute_update(&self, cmd: &str, tx: Rc<RefCell<Transaction>>) -> i32 {
+    pub fn execute_update(&self, cmd: &str, tx: Rc<RefCell<Transaction>>) -> DbResult<i32> {
         let mut parser = Parser::new(cmd);
         let data = parser.update_cmd();
         self.verify_update(&data);

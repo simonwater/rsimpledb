@@ -1,3 +1,4 @@
+use crate::DbResult;
 use crate::plan::Plan;
 use crate::query::{ProductScan, Scan};
 use crate::record::Schema;
@@ -26,10 +27,10 @@ impl ProductPlan {
 
 impl Plan for ProductPlan {
     /// Creates a product scan for this query
-    fn open(&self) -> Box<dyn Scan> {
-        let s1 = self.p1.open();
-        let s2 = self.p2.open();
-        Box::new(ProductScan::new(s1, s2))
+    fn open(&self) -> DbResult<Box<dyn Scan>> {
+        let s1 = self.p1.open()?;
+        let s2 = self.p2.open()?;
+        Ok(Box::new(ProductScan::new(s1, s2)?))
     }
 
     /// Estimates the number of block accesses in the product

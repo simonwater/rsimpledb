@@ -1,4 +1,5 @@
-use crate::buffer::{Buffer, BufferAbortException, BufferMgr};
+use crate::DbResult;
+use crate::buffer::{Buffer, BufferMgr};
 use crate::file::BlockId;
 use std::collections::{HashMap, VecDeque};
 use std::sync::{Arc, Mutex};
@@ -25,7 +26,7 @@ impl BufferList {
     }
 
     /// Pin the block and keep track of the buffer internally
-    pub fn pin(&mut self, blk: &BlockId) -> Result<(), BufferAbortException> {
+    pub fn pin(&mut self, blk: &BlockId) -> DbResult<()> {
         let buff = self.bm.pin(blk)?;
         self.buffers.insert(blk.clone(), Arc::clone(&buff));
         self.pins.push_back(blk.clone());

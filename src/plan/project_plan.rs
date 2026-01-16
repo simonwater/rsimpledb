@@ -1,3 +1,4 @@
+use crate::DbResult;
 use crate::plan::Plan;
 use crate::query::{ProjectScan, Scan};
 use crate::record::Schema;
@@ -25,9 +26,9 @@ impl ProjectPlan {
 
 impl Plan for ProjectPlan {
     /// Creates a project scan for this query
-    fn open(&self) -> Box<dyn Scan> {
-        let s = self.p.open();
-        Box::new(ProjectScan::new(s, self.schema.fields().to_vec()))
+    fn open(&self) -> DbResult<Box<dyn Scan>> {
+        let s = self.p.open()?;
+        Ok(Box::new(ProjectScan::new(s, self.schema.fields().to_vec())))
     }
 
     /// Estimates the number of block accesses in the projection

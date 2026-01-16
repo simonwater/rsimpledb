@@ -1,3 +1,4 @@
+use crate::DbResult;
 use crate::plan::Plan;
 use crate::query::{Constant, Scan, Term};
 use crate::record::Schema;
@@ -22,8 +23,13 @@ impl Predicate {
     }
 
     /// Return true if the predicate is satisfied by the specified scan
-    pub fn is_satisfied(&self, s: &mut dyn Scan) -> bool {
-        self.terms.iter().all(|term| term.is_satisfied(s))
+    pub fn is_satisfied(&self, s: &mut dyn Scan) -> DbResult<bool> {
+        self.terms.iter().try_fold(true, |acc, term| {
+            if !acc {
+                return Ok(false); // 已经发现不满足条件的了，短路
+            }
+            term.is_satisfied(s)
+        })
     }
 
     pub fn is_empty(&self) -> bool {

@@ -1,3 +1,4 @@
+use crate::DbResult;
 use crate::query::Scan;
 use crate::record::Schema;
 use std::sync::Arc;
@@ -5,7 +6,7 @@ use std::sync::Arc;
 /// The interface implemented by each query plan
 pub trait Plan {
     /// Opens a scan corresponding to this plan
-    fn open(&self) -> Box<dyn Scan>;
+    fn open(&self) -> DbResult<Box<dyn Scan>>;
 
     /// Returns an estimate of the number of block accesses
     fn blocks_accessed(&self) -> i32;

@@ -66,7 +66,7 @@ mod tests {
     fn concurrency_mgr_test() {
         let db_dir = ".temp/concurrencydb";
         let _guard = TempFileGuard::new(db_dir);
-        let db = DataBase::new(db_dir);
+        let db = DataBase::new(db_dir).unwrap();
         let mut fm = db.file_mgr();
         let _blk1 = fm.append("testfile");
         let _blk2 = fm.append("testfile");

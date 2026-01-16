@@ -117,7 +117,7 @@ mod tests {
         let db_dir = ".temp/recoverydb";
         let _guard = TempFileGuard::new(db_dir);
         let handle = thread::spawn(|| {
-            let mut db: DataBase = DataBase::new(db_dir);
+            let mut db: DataBase = DataBase::new(db_dir).unwrap();
             initialize(&mut db);
             // blk1回滚成功，blk2失败, 模拟系统崩溃
             modify(&mut db);
@@ -125,7 +125,7 @@ mod tests {
         handle.join().unwrap();
 
         // 主线程模拟系统恢复
-        let db: DataBase = DataBase::new(db_dir);
+        let db: DataBase = DataBase::new(db_dir).unwrap();
         check_initial_values(&mut db.file_mgr());
     }
 

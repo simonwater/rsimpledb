@@ -1,8 +1,9 @@
+use crate::DbResult;
 use crate::buffer::BufferMgr;
 use crate::file::FileMgr;
 use crate::log::LogMgr;
 use crate::metadata::MetadataMgr;
-use crate::plan::{BasicQueryPlanner, BasicUpdatePlanner, Planner, planner};
+use crate::plan::{BasicQueryPlanner, BasicUpdatePlanner, Planner};
 use crate::tx::{LockTable, Transaction};
 use std::cell::RefCell;
 use std::path::PathBuf;
@@ -24,11 +25,11 @@ pub struct DataBase {
 }
 
 impl DataBase {
-    pub fn new(db_directory: &str) -> Self {
+    pub fn new(db_directory: &str) -> DbResult<Self> {
         Self::new_with_size(db_directory, BLOCK_SIZE, BUFFER_SIZE)
     }
 
-    pub fn new_with_size(db_directory: &str, blocksize: usize, numbuffs: usize) -> Self {
+    pub fn new_with_size(db_directory: &str, blocksize: usize, numbuffs: usize) -> DbResult<Self> {
         let db_dir = PathBuf::from(db_directory);
         let fm = FileMgr::new(db_dir, blocksize);
         let lm = LogMgr::new(fm.clone(), LOG_FILE.to_string());
@@ -38,7 +39,7 @@ impl DataBase {
         let tx = Transaction::new(fm.clone(), lm.clone(), bm.clone(), lt.clone());
         let tx = Rc::new(RefCell::new(tx));
         let isnew = fm.is_new();
-        let mdm = Arc::new(MetadataMgr::new(isnew, Rc::clone(&tx)));
+        let mdm = Arc::new(MetadataMgr::new(isnew, Rc::clone(&tx))?);
         if isnew {
             println!("creating new database");
         } else {
@@ -50,14 +51,14 @@ impl DataBase {
         let planner = Planner::new(qp, up);
         tx.borrow_mut().commit();
 
-        DataBase {
+        Ok(DataBase {
             lm,
             bm,
             fm,
             lt,
             mdm,
             planner,
-        }
+        })
     }
 
     pub fn file_mgr(&self) -> FileMgr {

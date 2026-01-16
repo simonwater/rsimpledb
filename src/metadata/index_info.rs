@@ -8,10 +8,10 @@ use std::sync::Arc;
 
 /// The information about an index
 pub struct IndexInfo {
-    idxname: String,
+    _idxname: String,
     fldname: String,
     tx: Rc<RefCell<Transaction>>,
-    tbl_schema: Arc<Schema>,
+    _tbl_schema: Arc<Schema>,
     idx_layout: Layout,
     si: StatInfo,
 }
@@ -27,10 +27,10 @@ impl IndexInfo {
     ) -> Self {
         let idx_layout = Self::create_idx_layout(&tbl_schema, &fldname);
         IndexInfo {
-            idxname,
+            _idxname: idxname,
             fldname,
             tx,
-            tbl_schema,
+            _tbl_schema: tbl_schema,
             idx_layout,
             si,
         }

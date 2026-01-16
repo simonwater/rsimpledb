@@ -1,3 +1,4 @@
+use crate::DbResult;
 use crate::query::{Constant, Scan};
 use crate::record::Schema;
 
@@ -17,10 +18,10 @@ impl Expression {
         Expression::Constant(c)
     }
 
-    pub fn evaluate(&self, s: &mut dyn Scan) -> Constant {
+    pub fn evaluate(&self, s: &mut dyn Scan) -> DbResult<Constant> {
         match self {
             Expression::Field(fldname) => s.get_val(fldname),
-            Expression::Constant(c) => c.clone(),
+            Expression::Constant(c) => Ok(c.clone()),
         }
     }
 

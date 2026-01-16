@@ -12,22 +12,22 @@ use std::sync::Arc;
 fn scan_test1() {
     let db_dir = ".temp/scantest1";
     let _guard = TempFileGuard::new(db_dir);
-    let db: DataBase = DataBase::new(db_dir);
+    let db: DataBase = DataBase::new(db_dir).unwrap();
     let mut sch = Schema::new();
     sch.add_int_field("A");
     sch.add_string_field("B", 9);
     let layout = Arc::new(Layout::new(Arc::new(sch)));
     let tx = Rc::new(RefCell::new(db.new_tx()));
 
-    let mut s1 = TableScan::new(Rc::clone(&tx), "T", Arc::clone(&layout));
+    let mut s1 = TableScan::new(Rc::clone(&tx), "T", Arc::clone(&layout)).unwrap();
     for i in 1..=50 {
-        s1.insert();
-        s1.set_int("A", i);
-        s1.set_string("B", &format!("rec{}", i));
+        s1.insert().unwrap();
+        s1.set_int("A", i).unwrap();
+        s1.set_string("B", &format!("rec{}", i)).unwrap();
     }
     s1.close();
 
-    let s2 = TableScan::new(Rc::clone(&tx), "T", Arc::clone(&layout));
+    let s2 = TableScan::new(Rc::clone(&tx), "T", Arc::clone(&layout)).unwrap();
     let c = Constant::from_int(10);
     let t = Term::new(Expression::Field("A".to_string()), Expression::Constant(c));
     let pred = Predicate::from_term(t);
@@ -35,10 +35,10 @@ fn scan_test1() {
     let fields = vec!["B".to_string()];
     let mut s4 = ProjectScan::new(Box::new(s3), fields);
     let mut cnt = 0;
-    while s4.next() {
+    while s4.next().unwrap() {
         cnt += 1;
         assert_eq!(false, s4.has_field("A"));
-        assert_eq!("rec10", s4.get_string("B"));
+        assert_eq!("rec10", s4.get_string("B").unwrap());
     }
     assert_eq!(1, cnt);
 }
@@ -47,7 +47,7 @@ fn scan_test1() {
 fn scan_test2() {
     let db_dir = ".temp/scantest2";
     let _guard = TempFileGuard::new(db_dir);
-    let db: DataBase = DataBase::new(db_dir);
+    let db: DataBase = DataBase::new(db_dir).unwrap();
     let tx = Rc::new(RefCell::new(db.new_tx()));
     // create tables
     let mut sch1 = Schema::new();
@@ -60,25 +60,25 @@ fn scan_test2() {
     let layout2 = Arc::new(Layout::new(Arc::new(sch2)));
 
     // insert records
-    let mut ts1 = TableScan::new(Rc::clone(&tx), "T1", Arc::clone(&layout1));
+    let mut ts1 = TableScan::new(Rc::clone(&tx), "T1", Arc::clone(&layout1)).unwrap();
     for i in 1..=100 {
-        ts1.insert();
-        ts1.set_int("A", i);
-        ts1.set_string("B", &format!("t1_rec{}", i));
+        ts1.insert().unwrap();
+        ts1.set_int("A", i).unwrap();
+        ts1.set_string("B", &format!("t1_rec{}", i)).unwrap();
     }
     ts1.close();
 
-    let mut ts2 = TableScan::new(Rc::clone(&tx), "T2", Arc::clone(&layout2));
+    let mut ts2 = TableScan::new(Rc::clone(&tx), "T2", Arc::clone(&layout2)).unwrap();
     for i in 1..=50 {
-        ts2.insert();
-        ts2.set_int("C", i * 2);
-        ts2.set_string("D", &format!("t2_rec{}", i * 2));
+        ts2.insert().unwrap();
+        ts2.set_int("C", i * 2).unwrap();
+        ts2.set_string("D", &format!("t2_rec{}", i * 2)).unwrap();
     }
     ts2.close();
 
-    let ts1 = TableScan::new(Rc::clone(&tx), "T1", Arc::clone(&layout1));
-    let ts2 = TableScan::new(Rc::clone(&tx), "T2", Arc::clone(&layout2));
-    let ts3 = ProductScan::new(Box::new(ts1), Box::new(ts2));
+    let ts1 = TableScan::new(Rc::clone(&tx), "T1", Arc::clone(&layout1)).unwrap();
+    let ts2 = TableScan::new(Rc::clone(&tx), "T2", Arc::clone(&layout2)).unwrap();
+    let ts3 = ProductScan::new(Box::new(ts1), Box::new(ts2)).unwrap();
     // selecting all records where A=C
     let t = Term::new(
         Expression::Field("A".to_string()),
@@ -91,10 +91,10 @@ fn scan_test2() {
     let fields = vec!["B".to_string(), "D".to_string()];
     let mut ts5 = ProjectScan::new(Box::new(ts4), fields);
     let mut cnt = 0;
-    while ts5.next() {
+    while ts5.next().unwrap() {
         cnt += 1;
-        assert_eq!(format!("t1_rec{}", cnt * 2), ts5.get_string("B"));
-        assert_eq!(format!("t2_rec{}", cnt * 2), ts5.get_string("D"));
+        assert_eq!(format!("t1_rec{}", cnt * 2), ts5.get_string("B").unwrap());
+        assert_eq!(format!("t2_rec{}", cnt * 2), ts5.get_string("D").unwrap());
     }
     ts5.close();
     tx.borrow_mut().commit();

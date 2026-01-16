@@ -1,3 +1,4 @@
+use crate::DbResult;
 use crate::query::{Constant, Scan};
 
 /// The scan class corresponding to the project relational algebra operator
@@ -14,23 +15,23 @@ impl ProjectScan {
 }
 
 impl Scan for ProjectScan {
-    fn before_first(&mut self) {
-        self.s.before_first();
+    fn before_first(&mut self) -> DbResult<()> {
+        self.s.before_first()
     }
 
-    fn next(&mut self) -> bool {
+    fn next(&mut self) -> DbResult<bool> {
         self.s.next()
     }
 
-    fn get_int(&mut self, fldname: &str) -> i32 {
+    fn get_int(&mut self, fldname: &str) -> DbResult<i32> {
         self.s.get_int(fldname)
     }
 
-    fn get_string(&mut self, fldname: &str) -> String {
+    fn get_string(&mut self, fldname: &str) -> DbResult<String> {
         self.s.get_string(fldname)
     }
 
-    fn get_val(&mut self, fldname: &str) -> Constant {
+    fn get_val(&mut self, fldname: &str) -> DbResult<Constant> {
         self.s.get_val(fldname)
     }
 

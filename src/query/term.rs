@@ -1,3 +1,4 @@
+use crate::DbResult;
 use crate::plan::Plan;
 use crate::query::{Constant, Expression, Scan};
 use crate::record::Schema;
@@ -15,10 +16,10 @@ impl Term {
     }
 
     /// Return true if both expressions evaluate to the same constant
-    pub fn is_satisfied(&self, s: &mut dyn Scan) -> bool {
-        let lhsval = self.lhs.evaluate(s);
-        let rhsval = self.rhs.evaluate(s);
-        lhsval == rhsval
+    pub fn is_satisfied(&self, s: &mut dyn Scan) -> DbResult<bool> {
+        let lhsval = self.lhs.evaluate(s)?;
+        let rhsval = self.rhs.evaluate(s)?;
+        Ok(lhsval == rhsval)
     }
 
     pub fn lhs(&self) -> &Expression {

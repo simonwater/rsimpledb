@@ -1,21 +1,11 @@
 use std::sync::{Arc, Mutex};
 use std::time::{SystemTime, UNIX_EPOCH};
 
+use crate::DbResult;
+use crate::buffer::BufferError;
 use crate::buffer::buffer::Buffer;
 use crate::file::{BlockId, FileMgr};
 use crate::log::LogMgr;
-
-/// Exception thrown when buffer manager cannot pin a buffer within timeout
-#[derive(Debug)]
-pub struct BufferAbortException;
-
-impl std::fmt::Display for BufferAbortException {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "BufferAbortException: No buffers available")
-    }
-}
-
-impl std::error::Error for BufferAbortException {}
 
 #[derive(Clone)]
 pub struct BufferMgr {
@@ -46,7 +36,7 @@ impl BufferMgr {
 
     /// Pins a buffer to the specified block, waiting if necessary.
     /// Returns BufferAbortException if no buffer becomes available within MAX_TIME.
-    pub fn pin(&self, blk: &BlockId) -> Result<Arc<Mutex<Buffer>>, BufferAbortException> {
+    pub fn pin(&self, blk: &BlockId) -> DbResult<Arc<Mutex<Buffer>>> {
         self.state.lock().unwrap().pin(blk)
     }
 }
@@ -99,7 +89,7 @@ impl BufferMgrState {
 
     /// Pins a buffer to the specified block, waiting if necessary.
     /// Returns BufferAbortException if no buffer becomes available within MAX_TIME.
-    pub fn pin(&mut self, blk: &BlockId) -> Result<Arc<Mutex<Buffer>>, BufferAbortException> {
+    pub fn pin(&mut self, blk: &BlockId) -> DbResult<Arc<Mutex<Buffer>>> {
         let start_time = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .unwrap()
@@ -117,7 +107,7 @@ impl BufferMgrState {
                 - start_time;
 
             if elapsed > MAX_TIME_MS {
-                return Err(BufferAbortException);
+                return Err(BufferError::Abort(blk.clone()).into());
             }
 
             // Sleep a bit before trying again to avoid busy-waiting
