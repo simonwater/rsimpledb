@@ -1,4 +1,5 @@
 use rsimpledb::db::DataBase;
+use rsimpledb::metadata::IndexType;
 use rsimpledb::metadata::MetadataMgr;
 use rsimpledb::parse::InsertData;
 use rsimpledb::plan::Planner;
@@ -16,7 +17,7 @@ use std::vec;
 fn bulk_insert_test() {
     let db_dir = ".temp/bulk_insertdb";
     let _guard = TempFileGuard::new(db_dir);
-    let db: DataBase = DataBase::new_with_size(db_dir, 1024, 2048).unwrap();
+    let db: DataBase = DataBase::new_with_conf(db_dir, 1024, 2048, IndexType::BTree).unwrap();
     let tx = Rc::new(RefCell::new(db.new_tx().unwrap()));
     let planner = db.planner();
     let sql = "create table student(sid int, sname varchar(9), majorid int)";

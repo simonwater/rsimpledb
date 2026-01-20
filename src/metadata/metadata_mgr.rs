@@ -1,5 +1,5 @@
 use crate::DbResult;
-use crate::metadata::{IndexInfo, IndexMgr, StatInfo, StatMgr, TableMgr, ViewMgr};
+use crate::metadata::{IndexInfo, IndexMgr, IndexType, StatInfo, StatMgr, TableMgr, ViewMgr};
 use crate::record::{Layout, Schema};
 use crate::tx::Transaction;
 use std::cell::RefCell;
@@ -17,11 +17,15 @@ pub struct MetadataMgr {
 }
 
 impl MetadataMgr {
-    pub fn new(is_new: bool, tx: Rc<RefCell<Transaction>>) -> DbResult<Self> {
+    pub fn new(
+        is_new: bool,
+        tx: Rc<RefCell<Transaction>>,
+        index_type: IndexType,
+    ) -> DbResult<Self> {
         let tbl_mgr = TableMgr::new(is_new, Rc::clone(&tx))?;
         let view_mgr = ViewMgr::new(is_new, tbl_mgr.clone(), Rc::clone(&tx))?;
         let stat_mgr = StatMgr::new(tbl_mgr.clone(), Rc::clone(&tx))?;
-        let idx_mgr = IndexMgr::new(is_new, tbl_mgr.clone(), stat_mgr.clone(), tx)?;
+        let idx_mgr = IndexMgr::new(is_new, tbl_mgr.clone(), stat_mgr.clone(), tx, index_type)?;
 
         Ok(MetadataMgr {
             tbl_mgr,
@@ -105,7 +109,7 @@ mod tests {
         let _guard = TempFileGuard::new(db_dir);
         let db: DataBase = DataBase::new(db_dir).unwrap();
         let tx = Rc::new(RefCell::new(db.new_tx().unwrap()));
-        let mdm = MetadataMgr::new(true, Rc::clone(&tx)).unwrap();
+        let mdm = db.md_mgr();
 
         // Part 1: Table Metadata
         let mut sch = Schema::new();

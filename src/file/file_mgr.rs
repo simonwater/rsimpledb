@@ -193,7 +193,7 @@ mod tests {
         let db_dir = ".temp/fmdb";
         let _guard = TempFileGuard::new(db_dir);
         let blocksize = 400;
-        let db: DataBase = DataBase::new_with_size(db_dir, blocksize, 10).unwrap();
+        let db: DataBase = DataBase::new(db_dir).unwrap();
         let mut fm = db.file_mgr();
 
         let filename = "testfile";

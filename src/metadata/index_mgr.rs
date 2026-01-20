@@ -1,4 +1,5 @@
 use crate::DbResult;
+use crate::metadata::IndexType;
 use crate::metadata::{IndexInfo, MAX_NAME, StatMgr, TableMgr};
 use crate::query::{Scan, UpdateScan};
 use crate::record::{Layout, Schema, TableScan};
@@ -14,6 +15,7 @@ pub struct IndexMgr {
     layout: Arc<Layout>,
     tbl_mgr: TableMgr,
     stat_mgr: StatMgr,
+    index_type: IndexType,
 }
 
 impl IndexMgr {
@@ -23,6 +25,7 @@ impl IndexMgr {
         tbl_mgr: TableMgr,
         stat_mgr: StatMgr,
         tx: Rc<RefCell<Transaction>>,
+        index_type: IndexType,
     ) -> DbResult<Self> {
         if is_new {
             let mut sch = Schema::new();
@@ -36,6 +39,7 @@ impl IndexMgr {
             layout: Arc::new(layout),
             tbl_mgr,
             stat_mgr,
+            index_type,
         })
     }
 
@@ -73,8 +77,14 @@ impl IndexMgr {
                 let tbl_si =
                     self.stat_mgr
                         .get_stat_info(tblname, Arc::new(tbl_layout), Rc::clone(&tx))?;
-                let ii =
-                    IndexInfo::new(idxname, fldname.clone(), tbl_schema, Rc::clone(&tx), tbl_si);
+                let ii = IndexInfo::new(
+                    idxname,
+                    fldname.clone(),
+                    tbl_schema,
+                    Rc::clone(&tx),
+                    tbl_si,
+                    self.index_type.clone(),
+                );
                 result.insert(fldname, ii);
             }
         }

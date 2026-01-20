@@ -1,5 +1,6 @@
 use rsimpledb::db::DataBase;
 use rsimpledb::index::planner::IndexUpdatePlanner;
+use rsimpledb::metadata::IndexType;
 use rsimpledb::metadata::MetadataMgr;
 use rsimpledb::parse::InsertData;
 use rsimpledb::plan::UpdatePlanner;
@@ -14,10 +15,18 @@ use std::time::Instant;
 use std::vec;
 
 #[test]
-fn index_operations_test() {
-    let db_dir = ".temp/bulk_indexdb";
+fn btree_bulk_index_test() {
+    index_operation_test(".temp/btree_bulk_indexdb", IndexType::BTree);
+}
+
+#[test]
+fn hash_bulk_index_test() {
+    index_operation_test(".temp/hash_bulk_indexdb", IndexType::Hash);
+}
+
+fn index_operation_test(db_dir: &str, index_type: IndexType) {
     let _guard = TempFileGuard::new(db_dir);
-    let db: DataBase = DataBase::new_with_size(db_dir, 1024, 2048).unwrap();
+    let db: DataBase = DataBase::new_with_conf(db_dir, 1024, 2048, index_type.clone()).unwrap();
     let tx = Rc::new(RefCell::new(db.new_tx().unwrap()));
     let planner = db.planner();
     let sql = "create table student(sid int, sname varchar(9), majorid int)";
@@ -41,7 +50,8 @@ fn index_operations_test() {
     let start_time = Instant::now();
     index_query(db.md_mgr(), tx.clone(), search_val);
     println!(
-        "B-tree index Query: Time taken to query sid={search_val}: {:?}",
+        "{} index Query: Time taken to query sid={search_val}: {:?}",
+        &index_type,
         start_time.elapsed()
     );
 

@@ -9,6 +9,7 @@ pub mod view_mgr;
 
 pub use error::MetadataError;
 pub use index_info::IndexInfo;
+pub use index_info::IndexType;
 pub use index_mgr::IndexMgr;
 pub use metadata_mgr::MetadataMgr;
 pub use stat_info::StatInfo;

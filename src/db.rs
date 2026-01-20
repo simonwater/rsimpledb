@@ -3,7 +3,7 @@ use crate::buffer::BufferMgr;
 use crate::file::FileMgr;
 use crate::index::planner::IndexUpdatePlanner;
 use crate::log::LogMgr;
-use crate::metadata::MetadataMgr;
+use crate::metadata::{IndexType, MetadataMgr};
 use crate::plan::{BasicQueryPlanner, BasicUpdatePlanner, Planner};
 use crate::tx::{LockTable, Transaction};
 use std::cell::RefCell;
@@ -27,10 +27,15 @@ pub struct DataBase {
 
 impl DataBase {
     pub fn new(db_directory: &str) -> DbResult<Self> {
-        Self::new_with_size(db_directory, BLOCK_SIZE, BUFFER_SIZE)
+        Self::new_with_conf(db_directory, BLOCK_SIZE, BUFFER_SIZE, IndexType::BTree)
     }
 
-    pub fn new_with_size(db_directory: &str, blocksize: usize, numbuffs: usize) -> DbResult<Self> {
+    pub fn new_with_conf(
+        db_directory: &str,
+        blocksize: usize,
+        numbuffs: usize,
+        index_type: IndexType,
+    ) -> DbResult<Self> {
         let db_dir = PathBuf::from(db_directory);
         let fm = FileMgr::new(db_dir, blocksize)?;
         let lm = LogMgr::new(fm.clone(), LOG_FILE.to_string())?;
@@ -40,7 +45,7 @@ impl DataBase {
         let tx = Transaction::new(fm.clone(), lm.clone(), bm.clone(), lt.clone())?;
         let tx = Rc::new(RefCell::new(tx));
         let isnew = fm.is_new();
-        let mdm = Arc::new(MetadataMgr::new(isnew, Rc::clone(&tx))?);
+        let mdm = Arc::new(MetadataMgr::new(isnew, Rc::clone(&tx), index_type)?);
         if isnew {
             println!("creating new database");
         } else {

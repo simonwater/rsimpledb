@@ -1,5 +1,5 @@
-use super::super::scan::IndexScan;
 use crate::DbResult;
+use crate::index::IndexScan;
 use crate::query::{Constant, Scan, UpdateScan};
 use crate::record::TableScan;
 

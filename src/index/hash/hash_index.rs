@@ -61,12 +61,7 @@ impl IndexScan for HashIndex {
     fn next(&mut self) -> DbResult<bool> {
         if let Some(searchkey) = &self.searchkey {
             if let Some(ref mut ts) = self.ts {
-                loop {
-                    let has_next = ts.next()?;
-                    if !has_next {
-                        self.current_rid = None;
-                        return Ok(false);
-                    }
+                while ts.next()? {
                     let dataval = ts.get_val("dataval")?;
                     if dataval == *searchkey {
                         // Cache the current RID for get_data_rid()
