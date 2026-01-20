@@ -1,6 +1,7 @@
 use crate::DbResult;
 use crate::buffer::BufferMgr;
 use crate::file::FileMgr;
+use crate::index::planner::IndexUpdatePlanner;
 use crate::log::LogMgr;
 use crate::metadata::MetadataMgr;
 use crate::plan::{BasicQueryPlanner, BasicUpdatePlanner, Planner};
@@ -47,8 +48,10 @@ impl DataBase {
             tx.borrow_mut().recover()?;
         }
         let qp = Arc::new(BasicQueryPlanner::new(Arc::clone(&mdm)));
-        let up = Arc::new(BasicUpdatePlanner::new(Arc::clone(&mdm)));
-        let planner = Planner::new(qp, up);
+        let _up = Arc::new(BasicUpdatePlanner::new(Arc::clone(&mdm)));
+
+        let _up = Arc::new(IndexUpdatePlanner::new(Arc::clone(&mdm)));
+        let planner = Planner::new(qp, _up);
         tx.borrow_mut().commit()?;
 
         Ok(DataBase {

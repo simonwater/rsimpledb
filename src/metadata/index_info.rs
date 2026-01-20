@@ -1,14 +1,17 @@
+use crate::DbResult;
+use crate::index::IndexScan;
+use crate::index::btree::BTreeIndex;
+//use crate::index::hash::HashIndex;
 use crate::metadata::StatInfo;
 use crate::record::{Layout, Schema, SqlTypes};
 use crate::tx::Transaction;
 use std::cell::RefCell;
 use std::rc::Rc;
 use std::sync::Arc;
-// use crate::index::Index; // To be implemented
 
 /// The information about an index
 pub struct IndexInfo {
-    _idxname: String,
+    idxname: String,
     fldname: String,
     tx: Rc<RefCell<Transaction>>,
     _tbl_schema: Arc<Schema>,
@@ -27,7 +30,7 @@ impl IndexInfo {
     ) -> Self {
         let idx_layout = Self::create_idx_layout(&tbl_schema, &fldname);
         IndexInfo {
-            _idxname: idxname,
+            idxname,
             fldname,
             tx,
             _tbl_schema: tbl_schema,
@@ -37,9 +40,18 @@ impl IndexInfo {
     }
 
     /// Open the index described by this object
-    pub fn open(&self) {
-        // To be implemented when Index trait is available
-        // return new HashIndex(tx, idxname, idxLayout);
+    pub fn open(&self) -> DbResult<Box<dyn IndexScan>> {
+        // Ok(Box::new(HashIndex::new(
+        //     self.tx.clone(),
+        //     &self.idxname,
+        //     self.idx_layout.clone(),
+        // )))
+
+        Ok(Box::new(BTreeIndex::new(
+            self.tx.clone(),
+            &self.idxname,
+            self.idx_layout.clone(),
+        )?))
     }
 
     /// Estimate the number of block accesses required
@@ -47,7 +59,7 @@ impl IndexInfo {
         let rpb = self.tx.borrow_mut().block_size() as i32 / self.idx_layout.slot_size();
         let numblocks = self.si.records_output() / rpb;
         // HashIndex::search_cost(numblocks, rpb)
-        numblocks // Simplified for now
+        BTreeIndex::search_cost(numblocks, rpb)
     }
 
     /// Return the estimated number of records having a search key

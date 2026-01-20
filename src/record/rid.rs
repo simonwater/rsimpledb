@@ -1,6 +1,6 @@
 /// A record identifier, consisting of the block number
 /// in which the record resides and the record's slot number
-#[derive(Eq)]
+#[derive(Eq, Clone, Debug)]
 pub struct RID {
     blknum: i32,
     slot: i32,

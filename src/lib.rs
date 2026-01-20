@@ -2,6 +2,7 @@ pub mod buffer;
 pub mod db;
 pub mod error;
 pub mod file;
+pub mod index;
 pub mod log;
 pub mod metadata;
 pub mod parse;

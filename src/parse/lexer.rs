@@ -29,7 +29,7 @@ impl Lexer {
     pub fn eat_id(&mut self) -> String {
         self.skip_whitespace();
         if !self.match_id() {
-            panic!("Syntax error: expected identifier");
+            panic!("Syntax error: expected identifier, sql: {}", self.s);
         }
         let start = self.pos;
         while self.pos < self.s.len() {
@@ -48,7 +48,7 @@ impl Lexer {
     pub fn eat_int_constant(&mut self) -> i32 {
         self.skip_whitespace();
         if !self.match_int_constant() {
-            panic!("Syntax error: expected integer constant");
+            panic!("Syntax error: expected integer constant, sql: {}", self.s);
         }
         let start = self.pos;
         while self.pos < self.s.len() {
@@ -62,7 +62,7 @@ impl Lexer {
         let num_str = &self.s[start..self.pos];
         let num = num_str
             .parse()
-            .unwrap_or_else(|_| panic!("Invalid integer: {}", num_str));
+            .unwrap_or_else(|_| panic!("Invalid integer: {}, sql: {}", num_str, self.s));
         self.skip_whitespace();
         num
     }
@@ -70,7 +70,7 @@ impl Lexer {
     pub fn eat_string_constant(&mut self) -> String {
         self.skip_whitespace();
         if !self.match_string_constant() {
-            panic!("Syntax error: expected string constant");
+            panic!("Syntax error: expected string constant, sql: {}", self.s);
         }
         self.pos += 1; // skip opening quote
         let start = self.pos;
@@ -90,7 +90,7 @@ impl Lexer {
     pub fn eat_keyword(&mut self, w: &str) {
         self.skip_whitespace();
         if !self.match_keyword(w) {
-            panic!("Syntax error: expected keyword {}", w);
+            panic!("Syntax error: expected keyword {}, sql: {}", w, self.s);
         }
         while self.pos < self.s.len() {
             let c = self.s.chars().nth(self.pos).unwrap();
@@ -106,7 +106,7 @@ impl Lexer {
     pub fn eat_delim(&mut self, d: char) {
         self.skip_whitespace();
         if self.pos >= self.s.len() || self.s.chars().nth(self.pos).unwrap() != d {
-            panic!("Syntax error: expected delimiter {}", d);
+            panic!("Syntax error: expected delimiter {}. sql: {}", d, self.s);
         }
         self.pos += 1;
         self.skip_whitespace();
