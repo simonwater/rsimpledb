@@ -32,21 +32,22 @@ impl UpdatePlanner for IndexUpdatePlanner {
         // first, insert the record
         let mut s = p.open()?;
         if let Some(us) = s.as_update_scan() {
-            us.insert()?;
-            let rid = us.get_rid();
-
             // then modify each field, inserting an index record if appropriate
-            let indexes = self.mdm.get_index_info(&tblname, tx.clone())?;
-            let mut val_iter = data.vals().into_iter();
-            for fldname in data.fields() {
-                if let Some(val) = val_iter.next() {
-                    us.set_val(&fldname, &val)?;
-                    // Insert index record if there's an index on this field
-                    if let Some(ii) = indexes.get(fldname.as_str()) {
-                        let mut idx = ii.open()?;
-                        idx.before_first(&val)?;
-                        idx.insert(&val, &rid)?;
-                        idx.close();
+            let index_infos = self.mdm.get_index_info(&tblname, tx.clone())?;
+            for row in data.rows() {
+                us.insert()?;
+                let rid = us.get_rid();
+                let mut col_iter = row.into_iter();
+                for fldname in data.fields() {
+                    if let Some(val) = col_iter.next() {
+                        us.set_val(&fldname, &val)?;
+                        // Insert index record if there's an index on this field
+                        if let Some(ii) = index_infos.get(fldname.as_str()) {
+                            let mut idx = ii.open()?;
+                            idx.before_first(&val)?;
+                            idx.insert(&val, &rid)?;
+                            idx.close();
+                        }
                     }
                 }
             }

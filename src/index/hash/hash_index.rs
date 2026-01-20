@@ -15,7 +15,7 @@ pub const NUM_BUCKETS: i32 = 100;
 pub struct HashIndex {
     tx: Rc<RefCell<Transaction>>,
     idxname: String,
-    layout: Layout,
+    layout: Arc<Layout>,
     searchkey: Option<Constant>,
     ts: Option<TableScan>,
     current_rid: Option<RID>,
@@ -23,7 +23,7 @@ pub struct HashIndex {
 
 impl HashIndex {
     /// Opens a hash index for the specified index.
-    pub fn new(tx: Rc<RefCell<Transaction>>, idxname: &str, layout: Layout) -> Self {
+    pub fn new(tx: Rc<RefCell<Transaction>>, idxname: &str, layout: Arc<Layout>) -> Self {
         HashIndex {
             tx,
             idxname: idxname.to_string(),
@@ -51,7 +51,7 @@ impl IndexScan for HashIndex {
         let tblname = format!("{}{}", self.idxname, bucket);
 
         let layout = Arc::new(self.layout.clone());
-        let table_scan = TableScan::new(self.tx.clone(), &tblname, layout)?;
+        let table_scan = TableScan::new(self.tx.clone(), &tblname, Arc::clone(&layout))?;
         self.ts = Some(table_scan);
         Ok(())
     }

@@ -14,8 +14,8 @@ pub fn planner_multi_thread1() {
     let planner = db.planner();
     let tx = Rc::new(RefCell::new(db.new_tx().unwrap()));
     // create table in main thread
-    create_table(planner, tx.clone(), "T");
-    insert_table(planner, tx.clone(), "T", (0, 1000));
+    create_table(&planner, tx.clone(), "T");
+    insert_table(&planner, tx.clone(), "T", (0, 1000));
     tx.borrow_mut().commit().unwrap();
 
     let headers = vec![];

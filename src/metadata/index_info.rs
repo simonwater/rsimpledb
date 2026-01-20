@@ -15,7 +15,7 @@ pub struct IndexInfo {
     fldname: String,
     tx: Rc<RefCell<Transaction>>,
     _tbl_schema: Arc<Schema>,
-    idx_layout: Layout,
+    idx_layout: Arc<Layout>,
     si: StatInfo,
 }
 
@@ -28,7 +28,7 @@ impl IndexInfo {
         tx: Rc<RefCell<Transaction>>,
         si: StatInfo,
     ) -> Self {
-        let idx_layout = Self::create_idx_layout(&tbl_schema, &fldname);
+        let idx_layout = Arc::new(Self::create_idx_layout(&tbl_schema, &fldname));
         IndexInfo {
             idxname,
             fldname,
@@ -50,7 +50,7 @@ impl IndexInfo {
         Ok(Box::new(BTreeIndex::new(
             self.tx.clone(),
             &self.idxname,
-            self.idx_layout.clone(),
+            Arc::clone(&self.idx_layout),
         )?))
     }
 

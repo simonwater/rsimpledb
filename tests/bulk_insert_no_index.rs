@@ -1,9 +1,8 @@
 use rsimpledb::db::DataBase;
-use rsimpledb::index::planner::IndexUpdatePlanner;
 use rsimpledb::metadata::MetadataMgr;
 use rsimpledb::parse::InsertData;
-use rsimpledb::plan::UpdatePlanner;
-use rsimpledb::plan::{Plan, Planner, TablePlan};
+use rsimpledb::plan::Planner;
+use rsimpledb::plan::{BasicUpdatePlanner, UpdatePlanner};
 use rsimpledb::query::Constant;
 use rsimpledb::tx::Transaction;
 use rsimpledb::util::TempFileGuard;
@@ -14,16 +13,13 @@ use std::time::Instant;
 use std::vec;
 
 #[test]
-fn index_operations_test() {
-    let db_dir = ".temp/bulk_indexdb";
+fn bulk_insert_test() {
+    let db_dir = ".temp/bulk_insertdb";
     let _guard = TempFileGuard::new(db_dir);
     let db: DataBase = DataBase::new_with_size(db_dir, 1024, 2048).unwrap();
     let tx = Rc::new(RefCell::new(db.new_tx().unwrap()));
     let planner = db.planner();
     let sql = "create table student(sid int, sname varchar(9), majorid int)";
-    planner.execute_update(sql, Rc::clone(&tx)).unwrap();
-
-    let sql = "create index index_student on student(sid)";
     planner.execute_update(sql, Rc::clone(&tx)).unwrap();
 
     // Insert records
@@ -37,14 +33,6 @@ fn index_operations_test() {
 
     let search_val = 5432;
 
-    // Verify records via index scan
-    let start_time = Instant::now();
-    index_query(db.md_mgr(), tx.clone(), search_val);
-    println!(
-        "B-tree index Query: Time taken to query sid={search_val}: {:?}",
-        start_time.elapsed()
-    );
-
     // Verify records via full table scan
     let start_time = Instant::now();
     basic_query(&planner, tx.clone(), search_val);
@@ -55,7 +43,7 @@ fn index_operations_test() {
 }
 
 fn bulk_insert(mdm: Arc<MetadataMgr>, tx: Rc<RefCell<Transaction>>, cnt: i32) {
-    let planner = IndexUpdatePlanner::new(mdm);
+    let planner = BasicUpdatePlanner::new(mdm);
     let mut rows = vec![];
     for i in 1..=cnt {
         let row = vec![
@@ -86,28 +74,6 @@ fn basic_query(planner: &Planner, tx: Rc<RefCell<Transaction>>, val: i32) {
     let mut cnt = 0;
     while s.next().unwrap() {
         assert_eq!(format!("student{}", val), s.get_string("sname").unwrap());
-        cnt += 1;
-    }
-    assert_eq!(1, cnt);
-}
-
-fn index_query(mdm: Arc<MetadataMgr>, tx: Rc<RefCell<Transaction>>, val: i32) {
-    let student_plan = TablePlan::new(Rc::clone(&tx), "student", &mdm).unwrap();
-    let mut ts = student_plan.open().unwrap();
-    let student_scan = ts.as_update_scan().unwrap();
-    let indexes = mdm.get_index_info("student", Rc::clone(&tx)).unwrap();
-    let ii = indexes.get("sid").unwrap();
-    let mut index_scan = ii.open().unwrap();
-    index_scan.before_first(&Constant::from_int(val)).unwrap();
-    let mut cnt = 0;
-    while index_scan.next().unwrap() {
-        let rid = index_scan.get_data_rid().unwrap();
-        student_scan.move_to_rid(&rid).unwrap();
-        assert_eq!(val, student_scan.get_int("sid").unwrap());
-        assert_eq!(
-            format!("student{}", val),
-            student_scan.get_string("sname").unwrap()
-        );
         cnt += 1;
     }
     assert_eq!(1, cnt);

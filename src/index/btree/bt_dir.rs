@@ -7,18 +7,19 @@ use crate::record::Layout;
 use crate::tx::Transaction;
 use std::cell::RefCell;
 use std::rc::Rc;
+use std::sync::Arc;
 
 /// A B-tree directory block.
 pub struct BTreeDir {
     tx: Rc<RefCell<Transaction>>,
-    layout: Layout,
+    layout: Arc<Layout>,
     contents: BTPage,
     filename: String,
 }
 
 impl BTreeDir {
     /// Creates an object to hold the contents of the specified B-tree block.
-    pub fn new(tx: Rc<RefCell<Transaction>>, blk: BlockId, layout: Layout) -> DbResult<Self> {
+    pub fn new(tx: Rc<RefCell<Transaction>>, blk: BlockId, layout: Arc<Layout>) -> DbResult<Self> {
         let filename = blk.file_name().to_string();
         let contents = BTPage::new(tx.clone(), blk, layout.clone())?;
 

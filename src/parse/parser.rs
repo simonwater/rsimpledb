@@ -111,7 +111,7 @@ impl Parser {
         self.lex.eat_delim('(');
         let vals = self.const_list();
         self.lex.eat_delim(')');
-        InsertData::new(tblname, flds, vals)
+        InsertData::new(tblname, flds, vec![vals])
     }
 
     fn field_list(&mut self) -> Vec<String> {

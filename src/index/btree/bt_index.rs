@@ -15,8 +15,8 @@ use std::sync::Arc;
 /// A B-tree implementation of the Index interface.
 pub struct BTreeIndex {
     tx: Rc<RefCell<Transaction>>,
-    dir_layout: Layout,
-    leaf_layout: Layout,
+    dir_layout: Arc<Layout>,
+    leaf_layout: Arc<Layout>,
     leaftbl: String,
     leaf: Option<BTreeLeaf>,
     rootblk: BlockId,
@@ -24,7 +24,11 @@ pub struct BTreeIndex {
 
 impl BTreeIndex {
     /// Opens a B-tree index for the specified index.
-    pub fn new(tx: Rc<RefCell<Transaction>>, idxname: &str, leaf_layout: Layout) -> DbResult<Self> {
+    pub fn new(
+        tx: Rc<RefCell<Transaction>>,
+        idxname: &str,
+        leaf_layout: Arc<Layout>,
+    ) -> DbResult<Self> {
         let leaftbl = format!("{}leaf", idxname);
         let dirtbl = format!("{}dir", idxname);
         let rootblk = BlockId::new(dirtbl.clone(), 0);
@@ -43,7 +47,7 @@ impl BTreeIndex {
         dir_schema.add_int_field("block");
         let leaf_schema = leaf_layout.schema();
         dir_schema.add("dataval", &*leaf_schema);
-        let dir_layout = Layout::new(Arc::new(dir_schema.clone()));
+        let dir_layout = Arc::new(Layout::new(Arc::new(dir_schema.clone())));
 
         if tx.borrow_mut().size(&dirtbl)? == 0 {
             // Create new root block

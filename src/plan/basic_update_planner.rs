@@ -77,11 +77,13 @@ impl UpdatePlanner for BasicUpdatePlanner {
         )?);
         let mut s = p.open()?;
         if let Some(us) = s.as_update_scan() {
-            us.insert()?;
-            let mut iter = data.vals().iter();
-            for fldname in data.fields() {
-                if let Some(val) = iter.next() {
-                    us.set_val(fldname, val)?;
+            for row in data.rows() {
+                us.insert()?;
+                let mut col_iter = row.iter();
+                for fldname in data.fields() {
+                    if let Some(val) = col_iter.next() {
+                        us.set_val(fldname, val)?;
+                    }
                 }
             }
         } else {

@@ -76,12 +76,12 @@ impl DataBase {
         self.bm.clone()
     }
 
-    pub fn md_mgr(&self) -> &MetadataMgr {
-        &self.mdm
+    pub fn md_mgr(&self) -> Arc<MetadataMgr> {
+        self.mdm.clone()
     }
 
-    pub fn planner(&self) -> &Planner {
-        &self.planner
+    pub fn planner(&self) -> Planner {
+        self.planner.clone()
     }
 
     pub fn new_tx(&self) -> DbResult<Transaction> {

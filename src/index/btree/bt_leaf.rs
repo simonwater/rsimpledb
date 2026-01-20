@@ -7,11 +7,12 @@ use crate::record::{Layout, RID};
 use crate::tx::Transaction;
 use std::cell::RefCell;
 use std::rc::Rc;
+use std::sync::Arc;
 
 /// An object that holds the contents of a B-tree leaf block.
 pub struct BTreeLeaf {
     tx: Rc<RefCell<Transaction>>,
-    layout: Layout,
+    layout: Arc<Layout>,
     searchkey: Constant,
     contents: BTPage,
     currentslot: i32,
@@ -23,7 +24,7 @@ impl BTreeLeaf {
     pub fn new(
         tx: Rc<RefCell<Transaction>>,
         blk: BlockId,
-        layout: Layout,
+        layout: Arc<Layout>,
         searchkey: Constant,
     ) -> DbResult<Self> {
         let filename = blk.file_name().to_string();

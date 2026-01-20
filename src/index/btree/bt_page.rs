@@ -6,6 +6,7 @@ use crate::record::{Layout, RID};
 use crate::tx::Transaction;
 use std::cell::RefCell;
 use std::rc::Rc;
+use std::sync::Arc;
 
 /// B-tree directory and leaf pages have many commonalities:
 /// in particular, their records are stored in sorted order,
@@ -13,7 +14,7 @@ use std::rc::Rc;
 pub struct BTPage {
     tx: Rc<RefCell<Transaction>>,
     currentblk: Option<BlockId>,
-    layout: Layout,
+    layout: Arc<Layout>,
 }
 
 impl BTPage {
@@ -21,7 +22,7 @@ impl BTPage {
     pub fn new(
         tx: Rc<RefCell<Transaction>>,
         currentblk: BlockId,
-        layout: Layout,
+        layout: Arc<Layout>,
     ) -> DbResult<Self> {
         tx.borrow_mut().pin(&currentblk)?;
 
