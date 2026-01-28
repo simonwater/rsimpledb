@@ -107,7 +107,7 @@ mod tests {
     fn mdm_test() {
         let db_dir = ".temp/mdmtest";
         let _guard = TempFileGuard::new(db_dir);
-        let db: DataBase = DataBase::new(db_dir).unwrap();
+        let db: DataBase = DataBase::new_with_conf(db_dir, 1024, 1024, IndexType::BTree).unwrap();
         let tx = Rc::new(RefCell::new(db.new_tx().unwrap()));
         let mdm = db.md_mgr();
 

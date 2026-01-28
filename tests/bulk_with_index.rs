@@ -26,7 +26,7 @@ fn hash_bulk_index_test() {
 
 fn index_operation_test(db_dir: &str, index_type: IndexType) {
     let _guard = TempFileGuard::new(db_dir);
-    let db: DataBase = DataBase::new_with_conf(db_dir, 1024, 2048, index_type.clone()).unwrap();
+    let db: DataBase = DataBase::new_with_conf(db_dir, 4096, 2048, index_type.clone()).unwrap();
     let tx = Rc::new(RefCell::new(db.new_tx().unwrap()));
     let planner = db.planner();
     let sql = "create table student(sid int, sname varchar(9), majorid int)";

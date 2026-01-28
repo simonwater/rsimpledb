@@ -1,5 +1,6 @@
 use crate::DbResult;
 use crate::index::IndexScan;
+use crate::index::hash::hash_code;
 use crate::query::{Constant, Scan, UpdateScan};
 use crate::record::{Layout, RID, TableScan};
 use crate::tx::Transaction;
@@ -12,7 +13,7 @@ pub const NUM_BUCKETS: i32 = 100;
 /// A static hash implementation of index.
 /// A fixed number of buckets is allocated (currently 100),
 /// and each bucket is implemented as a file of index records.
-pub struct HashIndex {
+pub struct StaticHashIndex {
     tx: Rc<RefCell<Transaction>>,
     idxname: String,
     layout: Arc<Layout>,
@@ -21,10 +22,10 @@ pub struct HashIndex {
     current_rid: Option<RID>,
 }
 
-impl HashIndex {
+impl StaticHashIndex {
     /// Opens a hash index for the specified index.
     pub fn new(tx: Rc<RefCell<Transaction>>, idxname: &str, layout: Arc<Layout>) -> Self {
-        HashIndex {
+        StaticHashIndex {
             tx,
             idxname: idxname.to_string(),
             layout,
@@ -40,7 +41,7 @@ impl HashIndex {
     }
 }
 
-impl IndexScan for HashIndex {
+impl IndexScan for StaticHashIndex {
     /// Positions the index before the first record
     /// having the specified search key.
     fn before_first(&mut self, searchkey: &Constant) -> DbResult<()> {
@@ -50,8 +51,7 @@ impl IndexScan for HashIndex {
         let bucket = hash_code(searchkey) % NUM_BUCKETS;
         let tblname = format!("{}{}", self.idxname, bucket);
 
-        let layout = Arc::new(self.layout.clone());
-        let table_scan = TableScan::new(self.tx.clone(), &tblname, Arc::clone(&layout))?;
+        let table_scan = TableScan::new(self.tx.clone(), &tblname, Arc::clone(&self.layout))?;
         self.ts = Some(table_scan);
         Ok(())
     }
@@ -125,24 +125,7 @@ impl IndexScan for HashIndex {
     }
 }
 
-/// Compute hash code for a Constant value
-fn hash_code(searchkey: &Constant) -> i32 {
-    match searchkey {
-        Constant::Int(i) => *i,
-        Constant::String(s) => {
-            let mut hash: i32 = 0;
-            for (i, c) in s.chars().enumerate() {
-                hash = hash.wrapping_mul(31).wrapping_add(c as i32);
-                if i > 10 {
-                    break; // Limit string length for hash calculation
-                }
-            }
-            hash
-        }
-    }
-}
-
-impl Drop for HashIndex {
+impl Drop for StaticHashIndex {
     fn drop(&mut self) {
         self.close();
     }

@@ -11,7 +11,7 @@ use std::path::PathBuf;
 use std::rc::Rc;
 use std::sync::Arc;
 
-pub const BLOCK_SIZE: usize = 1024;
+pub const BLOCK_SIZE: usize = 4 * 1024; // byte
 pub const BUFFER_SIZE: usize = 100;
 pub const LOG_FILE: &'static str = "rsimpledb.log";
 

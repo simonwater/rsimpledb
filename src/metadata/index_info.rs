@@ -1,7 +1,7 @@
 use crate::DbResult;
 use crate::index::IndexScan;
 use crate::index::btree::BTreeIndex;
-use crate::index::hash::HashIndex;
+use crate::index::hash::StaticHashIndex;
 use crate::metadata::StatInfo;
 use crate::record::{Layout, Schema, SqlTypes};
 use crate::tx::Transaction;
@@ -65,7 +65,7 @@ impl IndexInfo {
                 &self.idxname,
                 Arc::clone(&self.idx_layout),
             )?)),
-            IndexType::Hash => Ok(Box::new(HashIndex::new(
+            IndexType::Hash => Ok(Box::new(StaticHashIndex::new(
                 self.tx.clone(),
                 &self.idxname,
                 self.idx_layout.clone(),
@@ -79,7 +79,7 @@ impl IndexInfo {
         let numblocks = self.si.records_output() / rpb;
         match self.idx_type {
             IndexType::BTree => BTreeIndex::search_cost(numblocks, rpb),
-            IndexType::Hash => HashIndex::search_cost(numblocks, rpb),
+            IndexType::Hash => StaticHashIndex::search_cost(numblocks, rpb),
         }
     }
 
