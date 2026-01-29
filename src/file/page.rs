@@ -71,6 +71,8 @@ mod tests {
     #[test]
     fn page_test() {
         let mut page = Page::new(100);
+        assert_eq!(page.get_int(0), 0);
+        assert_eq!(page.get_string(4), "");
         page.set_int(0, 42);
         page.set_string(4, "hello，你好！");
         assert_eq!(page.get_int(0), 42);

@@ -15,12 +15,27 @@ pub struct RecordPage {
     tx: Rc<RefCell<Transaction>>,
     blk: BlockId,
     layout: Arc<Layout>,
+    start: i32, // start position of the first record, the block may store some information between [0, start)
 }
 
 impl RecordPage {
     pub fn new(tx: Rc<RefCell<Transaction>>, blk: BlockId, layout: Arc<Layout>) -> DbResult<Self> {
+        Self::new_with_start(tx, blk, layout, 0)
+    }
+
+    pub fn new_with_start(
+        tx: Rc<RefCell<Transaction>>,
+        blk: BlockId,
+        layout: Arc<Layout>,
+        start: i32,
+    ) -> DbResult<Self> {
         tx.borrow_mut().pin(&blk)?;
-        Ok(RecordPage { tx, blk, layout })
+        Ok(RecordPage {
+            tx,
+            blk,
+            layout,
+            start,
+        })
     }
 
     /// Return the integer value stored for the specified field of a specified slot
@@ -122,8 +137,9 @@ impl RecordPage {
         self.offset(slot + 1) <= self.tx.borrow_mut().block_size() as i32
     }
 
+    // pos of the slot record in block
     fn offset(&self, slot: i32) -> i32 {
-        slot * self.layout.slot_size()
+        self.start + slot * self.layout.slot_size()
     }
 }
 

@@ -47,12 +47,8 @@ impl TableScan {
     }
 
     fn move_to_new_block(&mut self) -> DbResult<()> {
-        let txnum = self.tx.borrow().txnum();
         self.close();
-        let blk = self.tx.borrow_mut().append(&self.filename).expect(&format!(
-            "Transaction {} failed to append new block to file {}",
-            txnum, self.filename
-        ));
+        let blk = self.tx.borrow_mut().append(&self.filename)?;
         let mut rp = RecordPage::new(Rc::clone(&self.tx), blk, Arc::clone(&self.layout))?;
         rp.format()?;
         self.rp = Some(rp);

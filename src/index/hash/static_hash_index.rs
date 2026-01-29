@@ -19,7 +19,6 @@ pub struct StaticHashIndex {
     layout: Arc<Layout>,
     searchkey: Option<Constant>,
     ts: Option<TableScan>,
-    current_rid: Option<RID>,
 }
 
 impl StaticHashIndex {
@@ -31,7 +30,6 @@ impl StaticHashIndex {
             layout,
             searchkey: None,
             ts: None,
-            current_rid: None,
         }
     }
 
@@ -64,16 +62,11 @@ impl IndexScan for StaticHashIndex {
                 while ts.next()? {
                     let dataval = ts.get_val("dataval")?;
                     if dataval == *searchkey {
-                        // Cache the current RID for get_data_rid()
-                        let blk_num = ts.get_int("block")?;
-                        let id = ts.get_int("id")?;
-                        self.current_rid = Some(RID::new(blk_num, id));
                         return Ok(true);
                     }
                 }
             }
         }
-        self.current_rid = None;
         Ok(false)
     }
 
