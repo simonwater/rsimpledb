@@ -1,6 +1,6 @@
+pub mod bucket_page;
 pub mod common;
 pub mod extendable_hash_index;
-pub mod extendible_hash;
 pub mod static_hash_index;
 
 pub use common::hash_code;

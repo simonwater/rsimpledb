@@ -1,6 +1,8 @@
 use crate::DbResult;
 use crate::file::BlockId;
 use crate::index::IndexScan;
+use crate::index::hash::bucket_page;
+use crate::index::hash::bucket_page::BucketPage;
 use crate::index::hash::hash_code;
 use crate::query::Constant;
 use crate::record::Layout;
@@ -20,10 +22,7 @@ pub struct ExtendableHashIndex {
     buckettbl: String,
     searchkey: Option<Constant>,
     dir_blk: BlockId, // dir[bucket] -> block
-    cur_bucket_rp: Option<RecordPage>,
-    cur_bucket_depth: i32,
-    cur_bucket_slot: i32,
-    current_rid: Option<RID>,
+    bucket_page: Option<BucketPage>,
 }
 
 impl ExtendableHashIndex {
@@ -44,26 +43,10 @@ impl ExtendableHashIndex {
             buckettbl,
             searchkey: None,
             dir_blk,
-            cur_bucket_rp: None,
-            cur_bucket_depth: 0,
-            cur_bucket_slot: -1,
-            current_rid: None,
+            bucket_page: None,
         };
 
         Ok(index)
-    }
-
-    fn get_val(
-        rp: &mut RecordPage,
-        slot: i32,
-        fldname: &str,
-        layout: &Layout,
-    ) -> DbResult<Constant> {
-        if layout.schema().ftype(fldname) == SqlTypes::INTEGER {
-            Ok(Constant::from_int(rp.get_int(slot, fldname)?))
-        } else {
-            Ok(Constant::from_string(rp.get_string(slot, fldname)?))
-        }
     }
 }
 
@@ -78,15 +61,12 @@ impl IndexScan for ExtendableHashIndex {
         tx.pin(&self.dir_blk)?;
         let bucket_blknum = tx.get_int(&self.dir_blk, bucket as usize)?;
         let bucket_blk = BlockId::new(self.buckettbl.clone(), bucket_blknum);
-        tx.pin(&bucket_blk)?;
-        self.cur_bucket_depth = tx.get_int(&bucket_blk, 0)?;
-        self.cur_bucket_rp = Some(RecordPage::new_with_start(
+        self.bucket_page = Some(BucketPage::new(
             Rc::clone(&self.tx),
             bucket_blk,
+            searchkey.clone(),
             Arc::clone(&self.layout),
-            4,
         )?);
-        self.cur_bucket_slot = -1;
         Ok(())
     }
 
@@ -94,30 +74,17 @@ impl IndexScan for ExtendableHashIndex {
     /// search key specified in the before_first method.
     /// Returns false if there are no more such index records.
     fn next(&mut self) -> DbResult<bool> {
-        let (Some(searchkey), Some(rp)) = (self.searchkey.as_ref(), self.cur_bucket_rp.as_mut())
-        else {
-            self.current_rid = None;
-            return Ok(false);
-        };
-
-        self.cur_bucket_slot = rp.next_after(self.cur_bucket_slot)?;
-        if self.cur_bucket_slot >= 0 {
-            let dataval = Self::get_val(rp, self.cur_bucket_slot, "dataval", &*self.layout)?;
-            if dataval == *searchkey {
-                let blknum = rp.get_int(self.cur_bucket_slot, "block")?;
-                let id = rp.get_int(self.cur_bucket_slot, "id")?;
-                self.current_rid = Some(RID::new(blknum, id));
-                return Ok(true);
-            }
+        if let Some(bucket_page) = self.bucket_page.as_mut() {
+            bucket_page.next()
+        } else {
+            Ok(false)
         }
-        self.current_rid = None;
-        Ok(false)
     }
 
     /// Returns the dataRID value stored in the current index record.
     fn get_data_rid(&mut self) -> DbResult<RID> {
-        if let Some(ref rid) = self.current_rid {
-            Ok(rid.clone())
+        if let Some(bucket_page) = self.bucket_page.as_mut() {
+            bucket_page.get_data_rid()
         } else {
             Ok(RID::new(0, 0))
         }
@@ -126,19 +93,27 @@ impl IndexScan for ExtendableHashIndex {
     /// Inserts an index record having the specified
     /// dataval and dataRID values.
     fn insert(&mut self, dataval: &Constant, datarid: &RID) -> DbResult<()> {
-        unimplemented!()
+        self.before_first(dataval)?;
+        let Some(bucket_page) = self.bucket_page.as_mut() else {
+            return Ok(());
+        };
+
+        bucket_page.insert(dataval, datarid)
     }
 
     /// Deletes the index record having the specified
     /// dataval and dataRID values.
-    fn delete(&mut self, dataval: &Constant, datarid: &RID) -> DbResult<()> {
-        unimplemented!()
+    fn delete(&mut self, dataval: &Constant, _datarid: &RID) -> DbResult<()> {
+        self.before_first(dataval)?;
+        let Some(bucket_page) = self.bucket_page.as_mut() else {
+            return Ok(());
+        };
+        bucket_page.delete()
     }
     /// Closes the index.
     fn close(&mut self) {
         // Nothing to do for now
-        self.current_rid = None;
-        self.cur_bucket_rp = None;
+        self.bucket_page = None
     }
 }
 
