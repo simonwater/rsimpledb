@@ -1,14 +1,11 @@
 use crate::DbResult;
 use crate::file::BlockId;
 use crate::index::IndexScan;
-use crate::index::hash::bucket_page;
 use crate::index::hash::bucket_page::BucketPage;
 use crate::index::hash::hash_code;
 use crate::query::Constant;
 use crate::record::Layout;
 use crate::record::RID;
-use crate::record::RecordPage;
-use crate::record::SqlTypes;
 use crate::tx::Transaction;
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -94,10 +91,17 @@ impl IndexScan for ExtendableHashIndex {
     /// dataval and dataRID values.
     fn insert(&mut self, dataval: &Constant, datarid: &RID) -> DbResult<()> {
         self.before_first(dataval)?;
-        let Some(bucket_page) = self.bucket_page.as_mut() else {
+        let Some(mut bucket_page) = self.bucket_page.as_mut() else {
             return Ok(());
         };
 
+        if bucket_page.is_full()? {
+            // Need to split the bucket
+            bucket_page.split(&self.dir_blk)?;
+            // Reposition to the correct bucket
+            self.before_first(dataval)?;
+            bucket_page = self.bucket_page.as_mut().unwrap();
+        }
         bucket_page.insert(dataval, datarid)
     }
 

@@ -1,5 +1,6 @@
 use crate::DbResult;
 use crate::file::BlockId;
+use crate::index::hash::common;
 use crate::query::Constant;
 use crate::record::Layout;
 use crate::record::RID;
@@ -112,6 +113,43 @@ impl BucketPage {
         Ok(())
     }
 
+    pub fn split(&mut self, dir_blk: &BlockId) -> DbResult<()> {
+        let new_local_depth = self.local_depth + 1;
+        let mut new_bucket_page = self.new_bucket_page()?;
+        self.set_local_depth(new_local_depth)?;
+        new_bucket_page.set_local_depth(new_local_depth)?;
+
+        // Rehash records
+        let mut original_length = self.length();
+        self.cur_slot = self.rp.next_after(-1)?; // initialize for iteration
+        while self.cur_slot >= 0 {
+            let dataval = self.get_val("dataval")?;
+            let bucketnum = common::hash_code(&dataval);
+            let bitmask = 1 << (new_local_depth - 1);
+            if (bucketnum & bitmask) != 0 {
+                // Move to new bucket
+                let data_blknum = self.rp.get_int(self.cur_slot, "block")?;
+                let data_slot = self.rp.get_int(self.cur_slot, "id")?;
+                let cur_rid = RID::new(data_blknum, data_slot);
+                new_bucket_page.insert(&dataval, &cur_rid)?;
+                self.rp.delete(self.cur_slot)?;
+                original_length -= 1;
+
+                // update directory
+                let new_bucket_blknum = new_bucket_page.rp.block().number();
+                self.tx.borrow_mut().set_int(
+                    dir_blk,
+                    bucketnum as usize,
+                    new_bucket_blknum,
+                    true,
+                )?;
+            }
+            self.cur_slot = self.rp.next_after(self.cur_slot)?;
+        }
+        self.set_length(original_length)?;
+        Ok(())
+    }
+
     pub fn get_data_rid(&mut self) -> DbResult<RID> {
         if let Some(ref rid) = self.cur_rid {
             Ok(rid.clone())
@@ -144,5 +182,18 @@ impl BucketPage {
         self.tx
             .borrow_mut()
             .set_int(self.rp.block(), 4, length, true)
+    }
+
+    fn new_bucket_page(&self) -> DbResult<BucketPage> {
+        let cur_blk = self.rp.block();
+        let buckettbl = cur_blk.file_name();
+        let new_blk = self.tx.borrow_mut().append(buckettbl)?; // new bucket block
+        let new_page = BucketPage::new(
+            Rc::clone(&self.tx),
+            new_blk,
+            self.searchkey.clone(),
+            Arc::clone(&self.layout),
+        )?;
+        Ok(new_page)
     }
 }
