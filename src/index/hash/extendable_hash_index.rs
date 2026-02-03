@@ -1,7 +1,9 @@
 use crate::DbResult;
 use crate::file::BlockId;
 use crate::index::IndexScan;
-use crate::index::hash::bucket_page::BucketPage;
+use crate::index::hash::BucketPage;
+use crate::index::hash::DirPage;
+use crate::index::hash::MAX_DEPTH;
 use crate::index::hash::hash_code;
 use crate::query::Constant;
 use crate::record::Layout;
@@ -11,14 +13,12 @@ use std::cell::RefCell;
 use std::rc::Rc;
 use std::sync::Arc;
 
-const MAX_DEPTH: i32 = 10;
-
 pub struct ExtendableHashIndex {
     tx: Rc<RefCell<Transaction>>,
     layout: Arc<Layout>, // layout of the index records: (block, id, dataval)
     buckettbl: String,
     searchkey: Option<Constant>,
-    dir_blk: BlockId, // dir[bucket] -> block
+    dir_page: DirPage,
     bucket_page: Option<BucketPage>,
 }
 
@@ -34,12 +34,13 @@ impl ExtendableHashIndex {
         } else {
             BlockId::new(dirtbl, 0)
         };
+        let dir_page = DirPage::new(Rc::clone(&tx), dir_blk.clone())?;
         let index = ExtendableHashIndex {
             tx,
             layout,
             buckettbl,
             searchkey: None,
-            dir_blk,
+            dir_page,
             bucket_page: None,
         };
 
@@ -48,15 +49,11 @@ impl ExtendableHashIndex {
 }
 
 impl IndexScan for ExtendableHashIndex {
-    /// Positions the index before the first record
-    /// having the specified search key.
     fn before_first(&mut self, searchkey: &Constant) -> DbResult<()> {
         self.close();
         self.searchkey = Some(searchkey.clone());
-        let bucket = hash_code(searchkey) % (1 << MAX_DEPTH);
-        let mut tx = self.tx.borrow_mut();
-        tx.pin(&self.dir_blk)?;
-        let bucket_blknum = tx.get_int(&self.dir_blk, bucket as usize)?;
+        let bucketnum = hash_code(searchkey) % (1 << MAX_DEPTH);
+        let bucket_blknum = self.dir_page.get_bucket_blknum(bucketnum)?;
         let bucket_blk = BlockId::new(self.buckettbl.clone(), bucket_blknum);
         self.bucket_page = Some(BucketPage::new(
             Rc::clone(&self.tx),
@@ -97,7 +94,7 @@ impl IndexScan for ExtendableHashIndex {
 
         if bucket_page.is_full()? {
             // Need to split the bucket
-            bucket_page.split(&self.dir_blk)?;
+            bucket_page.split(&mut self.dir_page)?;
             // Reposition to the correct bucket
             self.before_first(dataval)?;
             bucket_page = self.bucket_page.as_mut().unwrap();
@@ -124,5 +121,65 @@ impl IndexScan for ExtendableHashIndex {
 impl Drop for ExtendableHashIndex {
     fn drop(&mut self) {
         self.close();
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::DataBase;
+    use crate::record::{Layout, Schema};
+    use crate::util::TempFileGuard;
+
+    #[test]
+    fn extendable_hash_test() {
+        let db_dir = ".temp/extendable_hash_test";
+        let _guard = TempFileGuard::new(db_dir);
+        let db: DataBase = DataBase::new(db_dir).unwrap();
+        let mut sch = Schema::new();
+        sch.add_int_field("block");
+        sch.add_int_field("id");
+        sch.add_int_field("dataval");
+        let layout = Layout::new(Arc::new(sch));
+        let tx = Rc::new(RefCell::new(db.new_tx().unwrap()));
+
+        let mut index =
+            ExtendableHashIndex::new(Rc::clone(&tx), "extendablehashidx", Arc::new(layout))
+                .unwrap();
+
+        // insert 10000 records
+        for i in 0..10000 {
+            let dataval = Constant::Int(i);
+            let datarid = RID::new(i, i);
+            index.insert(&dataval, &datarid).unwrap();
+        }
+
+        // search and verify
+        for i in 100..1000 {
+            let dataval = Constant::Int(i);
+            let datarid = RID::new(i, i);
+            index.before_first(&dataval).unwrap();
+            let found = index.next().unwrap();
+            assert!(found);
+            let rid = index.get_data_rid().unwrap();
+            assert_eq!(rid, datarid);
+        }
+
+        // delete some records
+        for i in 10..20 {
+            let n = i * 100;
+            let dataval = Constant::Int(n);
+            let datarid = RID::new(n, n);
+            index.delete(&dataval, &datarid).unwrap();
+        }
+
+        // verify deletion
+        for i in 10..20 {
+            let n = i * 100;
+            let dataval = Constant::Int(n);
+            index.before_first(&dataval).unwrap();
+            let found = index.next().unwrap();
+            assert!(!found);
+        }
     }
 }

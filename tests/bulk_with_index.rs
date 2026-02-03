@@ -20,8 +20,16 @@ fn btree_bulk_index_test() {
 }
 
 #[test]
-fn hash_bulk_index_test() {
-    index_operation_test(".temp/hash_bulk_indexdb", IndexType::Hash);
+fn static_hash_bulk_index_test() {
+    index_operation_test(".temp/static_hash_bulk_indexdb", IndexType::StaticHash);
+}
+
+#[test]
+fn extendable_hash_bulk_index_test() {
+    index_operation_test(
+        ".temp/extendable_hash_bulk_indexdb",
+        IndexType::ExtendableHash,
+    );
 }
 
 fn index_operation_test(db_dir: &str, index_type: IndexType) {

@@ -12,14 +12,16 @@ use std::sync::Arc;
 #[derive(Debug, Clone)]
 pub enum IndexType {
     BTree,
-    Hash,
+    StaticHash,
+    ExtendableHash,
 }
 
 impl std::fmt::Display for IndexType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             IndexType::BTree => write!(f, "BTree"),
-            IndexType::Hash => write!(f, "Hash"),
+            IndexType::StaticHash => write!(f, "StaticHash"),
+            IndexType::ExtendableHash => write!(f, "ExtendableHash"),
         }
     }
 }
@@ -65,11 +67,18 @@ impl IndexInfo {
                 &self.idxname,
                 Arc::clone(&self.idx_layout),
             )?)),
-            IndexType::Hash => Ok(Box::new(StaticHashIndex::new(
+            IndexType::StaticHash => Ok(Box::new(StaticHashIndex::new(
                 self.tx.clone(),
                 &self.idxname,
                 self.idx_layout.clone(),
             ))),
+            IndexType::ExtendableHash => {
+                Ok(Box::new(crate::index::hash::ExtendableHashIndex::new(
+                    self.tx.clone(),
+                    &self.idxname,
+                    self.idx_layout.clone(),
+                )?))
+            }
         }
     }
 
@@ -79,7 +88,8 @@ impl IndexInfo {
         let numblocks = self.si.records_output() / rpb;
         match self.idx_type {
             IndexType::BTree => BTreeIndex::search_cost(numblocks, rpb),
-            IndexType::Hash => StaticHashIndex::search_cost(numblocks, rpb),
+            IndexType::StaticHash => StaticHashIndex::search_cost(numblocks, rpb),
+            IndexType::ExtendableHash => 2,
         }
     }
 

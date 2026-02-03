@@ -1,5 +1,8 @@
 use crate::query::Constant;
 
+/// Maximum depth for extendable hash
+pub const MAX_DEPTH: i32 = 9;
+
 /// Compute hash code for a Constant value
 pub fn hash_code(searchkey: &Constant) -> i32 {
     match searchkey {

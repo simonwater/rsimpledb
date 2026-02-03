@@ -1,6 +1,8 @@
 use crate::DbResult;
 use crate::file::BlockId;
-use crate::index::hash::common;
+use crate::index::hash::DirPage;
+use crate::index::hash::MAX_DEPTH;
+use crate::index::hash::common::hash_code;
 use crate::query::Constant;
 use crate::record::Layout;
 use crate::record::RID;
@@ -30,11 +32,10 @@ impl BucketPage {
         searchkey: Constant,
         layout: Arc<Layout>,
     ) -> DbResult<Self> {
-        let mut trsn = tx.borrow_mut();
-        trsn.pin(&blk)?;
-        let capacity = (trsn.block_size() as i32 - 8) / layout.slot_size();
-        let local_depth = trsn.get_int(&blk, 0)?;
-        let length = trsn.get_int(&blk, 4)?;
+        tx.borrow_mut().pin(&blk)?;
+        let capacity = (tx.borrow_mut().block_size() as i32 - 8) / layout.slot_size();
+        let local_depth = tx.borrow_mut().get_int(&blk, 0)?;
+        let length = tx.borrow_mut().get_int(&blk, 4)?;
         let rp = RecordPage::new_with_start(Rc::clone(&tx), blk, Arc::clone(&layout), 8)?;
 
         Ok(BucketPage {
@@ -73,9 +74,11 @@ impl BucketPage {
         Ok(())
     }
 
+    // Moves the index to the next record having the
+    // search key specified in the before_first method.
     pub fn next(&mut self) -> DbResult<bool> {
         self.cur_slot = self.rp.next_after(self.cur_slot)?;
-        if self.cur_slot >= 0 {
+        while self.cur_slot >= 0 {
             let dataval = self.get_val("dataval")?;
             if dataval == self.searchkey {
                 let blknum = self.rp.get_int(self.cur_slot, "block")?;
@@ -83,6 +86,7 @@ impl BucketPage {
                 self.cur_rid = Some(RID::new(blknum, id));
                 return Ok(true);
             }
+            self.cur_slot = self.rp.next_after(self.cur_slot)?;
         }
         self.cur_rid = None;
         Ok(false)
@@ -90,6 +94,7 @@ impl BucketPage {
 
     pub fn insert(&mut self, dataval: &Constant, datarid: &RID) -> DbResult<()> {
         if !self.is_full()? {
+            self.cur_slot = self.rp.insert_after(self.cur_slot)?;
             self.rp
                 .set_int(self.cur_slot, "block", datarid.block_number())?;
             self.rp.set_int(self.cur_slot, "id", datarid.slot())?;
@@ -113,8 +118,12 @@ impl BucketPage {
         Ok(())
     }
 
-    pub fn split(&mut self, dir_blk: &BlockId) -> DbResult<()> {
+    pub fn split(&mut self, dir_page: &mut DirPage) -> DbResult<()> {
         let new_local_depth = self.local_depth + 1;
+        if new_local_depth > MAX_DEPTH {
+            // Cannot split further, max depth reached
+            unimplemented!("Maximum local depth reached; cannot split further");
+        }
         let mut new_bucket_page = self.new_bucket_page()?;
         self.set_local_depth(new_local_depth)?;
         new_bucket_page.set_local_depth(new_local_depth)?;
@@ -124,7 +133,7 @@ impl BucketPage {
         self.cur_slot = self.rp.next_after(-1)?; // initialize for iteration
         while self.cur_slot >= 0 {
             let dataval = self.get_val("dataval")?;
-            let bucketnum = common::hash_code(&dataval);
+            let bucketnum = hash_code(&dataval) % (1 << MAX_DEPTH);
             let bitmask = 1 << (new_local_depth - 1);
             if (bucketnum & bitmask) != 0 {
                 // Move to new bucket
@@ -137,12 +146,7 @@ impl BucketPage {
 
                 // update directory
                 let new_bucket_blknum = new_bucket_page.rp.block().number();
-                self.tx.borrow_mut().set_int(
-                    dir_blk,
-                    bucketnum as usize,
-                    new_bucket_blknum,
-                    true,
-                )?;
+                dir_page.set_bucket_blknum(bucketnum, new_bucket_blknum)?;
             }
             self.cur_slot = self.rp.next_after(self.cur_slot)?;
         }

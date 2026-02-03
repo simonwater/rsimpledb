@@ -13,8 +13,13 @@ fn btree_index_test() {
 }
 
 #[test]
-fn hash_index_test() {
-    index_operation_test(".temp/hash_indexdb", IndexType::Hash);
+fn static_hash_index_test() {
+    index_operation_test(".temp/static_hash_indexdb", IndexType::StaticHash);
+}
+
+#[test]
+fn extendable_hash_index_test() {
+    index_operation_test(".temp/extendable_hash_indexdb", IndexType::ExtendableHash);
 }
 
 fn index_operation_test(db_dir: &str, index_type: IndexType) {
