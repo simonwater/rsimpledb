@@ -131,11 +131,17 @@ impl BucketPage {
         // Rehash records
         let mut original_length = self.length();
         self.cur_slot = self.rp.next_after(-1)?; // initialize for iteration
+        let mut right_mask = -1;
         while self.cur_slot >= 0 {
             let dataval = self.get_val("dataval")?;
             let bucketnum = hash_code(&dataval) % (1 << MAX_DEPTH);
             let bitmask = 1 << (new_local_depth - 1);
             if (bucketnum & bitmask) != 0 {
+                if right_mask == -1 {
+                    // Set right_mask based on the first record's bucketnum
+                    let bitmask = (1 << new_local_depth) - 1;
+                    right_mask = bucketnum & bitmask;
+                }
                 // Move to new bucket
                 let data_blknum = self.rp.get_int(self.cur_slot, "block")?;
                 let data_slot = self.rp.get_int(self.cur_slot, "id")?;
@@ -143,16 +149,18 @@ impl BucketPage {
                 new_bucket_page.insert(&dataval, &cur_rid)?;
                 self.rp.delete(self.cur_slot)?;
                 original_length -= 1;
-
-                // update directory
-                let new_bucket_blknum = new_bucket_page.rp.block().number();
-                dir_page.set_bucket_blknum(bucketnum, new_bucket_blknum)?;
             }
             self.cur_slot = self.rp.next_after(self.cur_slot)?;
         }
+        // update directory page
+        //let right_mask = (1 << (new_local_depth - 1)) - 1;
+        let new_bucket_blknum = new_bucket_page.rp.block().number();
+        dir_page.update_dir_page(right_mask, new_local_depth, new_bucket_blknum)?;
         self.set_length(original_length)?;
         Ok(())
     }
+
+    /// Store an integer at the specified offset
 
     pub fn get_data_rid(&mut self) -> DbResult<RID> {
         if let Some(ref rid) = self.cur_rid {
