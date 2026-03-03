@@ -40,6 +40,7 @@ impl BTPage {
         let mut slot = 0;
         while slot < self.get_num_recs()? {
             let data_val = self.get_data_val(slot)?;
+            // the first slot whose data value >= searchkey
             if data_val.partial_cmp(searchkey).unwrap() >= std::cmp::Ordering::Equal {
                 break;
             }
